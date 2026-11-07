@@ -1,6 +1,6 @@
-# TravelHub — сценарий «Наполнение маршрута событиями»
+# TravelHub — события и перемещения поездки
 
-MVP-приложение для событий поездки: CRUD, таймлайн по дням, геоточки Leaflet/OpenStreetMap, выбор места на карте, редактирование/удаление и JSON persistence.
+MVP-приложение для событий и перемещений поездки: CRUD, таймлайн по дням, геоточки Leaflet/OpenStreetMap, связи между точками на карте и JSON persistence.
 
 ## Запуск
 
@@ -22,9 +22,13 @@ npm start
 
 ## API
 
-`GET /api/points`, `GET /api/events`, `POST /api/events`, `PUT /api/events/:id`, `DELETE /api/events/:id`, `DELETE /api/points/:id`.
+`GET /api/points`, `POST /api/points`, `PUT /api/points/:id`, `DELETE /api/points/:id`, `GET /api/events`, `POST /api/events`, `PUT /api/events/:id`, `DELETE /api/events/:id`, `GET /api/transfers`, `POST /api/transfers`, `PUT /api/transfers/:id`, `DELETE /api/transfers/:id`.
 
-Событие содержит `title`, `type`, `date`, `startTime`, `endTime`, `endDate`, `pointId`, `description`, `bookingUrl`, `materials[]`. Валидация запрещает пустую дату/время и окончание раньше начала; удаление точки автоматически обнуляет `pointId` связанных событий.
+Событие содержит `title`, `type`, `date`, `startTime`, `endTime`, `endDate`, `pointId`, `description`, `bookingUrl`, `materials[]`.
+
+Перемещение содержит `fromPointId`, `toPointId`, `mode`, `date`, `startTime`, `endDate`, `endTime`, `description`. Поддерживаются способы `walking`, `car`, `train`, `plane` и `other`. Валидация запрещает одинаковые точки, неизвестные точки и окончание раньше начала; удаление точки удаляет связанные перемещения.
+
+Точка содержит `name`, `lat`, `lng`, `description`. Её можно создать, изменить или удалить из интерфейса; координаты можно ввести вручную или выбрать кликом по карте.
 
 ## Архитектура и trade-off
 

@@ -1,8 +1,279 @@
-const http=require('http'),fs=require('fs'),path=require('path'),url=require('url');
-const PORT=process.env.PORT||3000, DB=path.join(__dirname,'..','data','db.json'), PUBLIC=path.join(__dirname,'..','public');
-const types={'application/json':'.json','.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml'};
-const read=()=>JSON.parse(fs.readFileSync(DB,'utf8')); const write=d=>fs.writeFileSync(DB,JSON.stringify(d,null,2));
-const body=req=>new Promise((resolve,reject)=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{try{resolve(b?JSON.parse(b):{})}catch(e){reject(e)}})});
-const send=(res,status,data,headers={})=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',...headers});res.end(data===undefined?'':JSON.stringify(data));};
-function valid(b){const e=[];if(!b.title?.trim())e.push('Название обязательно');if(!b.date)e.push('Дата обязательна');if(!b.startTime)e.push('Время начала обязательно');if(b.endDate&&b.endDate<b.date)e.push('Дата окончания не может быть раньше даты начала');if((b.endDate||b.date)===b.date&&b.endTime&&b.endTime<b.startTime)e.push('Время окончания не может быть раньше начала');return e}
-const server=http.createServer(async(req,res)=>{const p=url.parse(req.url,true), pathname=p.pathname; try{if(req.method==='GET'&&pathname==='/api/points')return send(res,200,read().points);if(req.method==='GET'&&pathname==='/api/events'){let a=read().events;if(p.query.date)a=a.filter(e=>e.date===p.query.date||(e.endDate&&e.date<p.query.date&&e.endDate>=p.query.date));return send(res,200,a)}if(req.method==='POST'&&pathname==='/api/events'){const b=await body(req),e=valid(b);if(e.length)return send(res,400,{errors:e});const d=read(),item={...b,id:'e_'+Date.now(),createdAt:new Date().toISOString()};d.events.push(item);write(d);return send(res,201,item)}const m=pathname.match(/^\/api\/events\/([^/]+)$/);if(m&&req.method==='PUT'){const b=await body(req),e=valid(b);if(e.length)return send(res,400,{errors:e});const d=read(),i=d.events.findIndex(x=>x.id===m[1]);if(i<0)return send(res,404,{error:'Не найдено'});d.events[i]={...d.events[i],...b,id:m[1]};write(d);return send(res,200,d.events[i])}if(m&&req.method==='DELETE'){const d=read();d.events=d.events.filter(x=>x.id!==m[1]);write(d);res.writeHead(204);return res.end()}const pm=pathname.match(/^\/api\/points\/([^/]+)$/);if(pm&&req.method==='DELETE'){const d=read();d.points=d.points.filter(x=>x.id!==pm[1]);d.events=d.events.map(e=>e.pointId===pm[1]?({...e,pointId:null}):e);write(d);res.writeHead(204);return res.end()}if(req.method==='GET'){let f=pathname==='/'?'/index.html':pathname;const file=path.join(PUBLIC,f);if(fs.existsSync(file)){const ext=path.extname(file);res.writeHead(200,{'Content-Type':types[ext]||'application/octet-stream'});return fs.createReadStream(file).pipe(res)}}send(res,404,{error:'Not found'})}catch(err){send(res,500,{error:err.message})}});server.listen(PORT,()=>console.log(`TravelHub: http://localhost:${PORT}`));
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const url = require('url');
+
+const PORT = Number(process.env.PORT || 3000);
+const DB = path.join(__dirname, '..', 'data', 'db.json');
+const PUBLIC = path.join(__dirname, '..', 'public');
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+const TRANSFER_MODES = new Set(['walking', 'car', 'train', 'plane', 'other']);
+
+function readDb() {
+  const data = JSON.parse(fs.readFileSync(DB, 'utf8'));
+  return {
+    points: Array.isArray(data.points) ? data.points : [],
+    events: Array.isArray(data.events) ? data.events : [],
+    transfers: Array.isArray(data.transfers) ? data.transfers : [],
+  };
+}
+
+function writeDb(data) {
+  fs.writeFileSync(DB, JSON.stringify(data, null, 2));
+}
+
+function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 1024 * 1024) reject(new Error('Размер запроса слишком большой'));
+    });
+    req.on('end', () => {
+      if (!body) return resolve({});
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        reject(new Error('Некорректный JSON'));
+      }
+    });
+  });
+}
+
+function sendJson(res, status, data) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(data === undefined ? '' : JSON.stringify(data));
+}
+
+function sendNoContent(res) {
+  res.writeHead(204);
+  res.end();
+}
+
+function id(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function isVisibleOnDate(item, date) {
+  return item.date === date || (item.endDate && item.date < date && item.endDate >= date);
+}
+
+function validateEvent(body) {
+  const errors = [];
+  if (!body.title?.trim()) errors.push('Название обязательно');
+  if (!body.date) errors.push('Дата обязательна');
+  if (!body.startTime) errors.push('Время начала обязательно');
+  if (body.endDate && body.endDate < body.date) errors.push('Дата окончания не может быть раньше даты начала');
+  if ((body.endDate || body.date) === body.date && body.endTime && body.endTime < body.startTime) {
+    errors.push('Время окончания не может быть раньше начала');
+  }
+  return errors;
+}
+
+function validatePoint(body) {
+  const errors = [];
+  if (!body.name?.trim()) errors.push('Название точки обязательно');
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) errors.push('Широта должна быть от -90 до 90');
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) errors.push('Долгота должна быть от -180 до 180');
+  return errors;
+}
+
+function validateTransfer(body, db) {
+  const errors = [];
+  if (!body.fromPointId) errors.push('Начальная точка обязательна');
+  if (!body.toPointId) errors.push('Конечная точка обязательна');
+  if (body.fromPointId && body.toPointId && body.fromPointId === body.toPointId) {
+    errors.push('Начальная и конечная точки должны различаться');
+  }
+  if (body.fromPointId && !db.points.some((point) => point.id === body.fromPointId)) {
+    errors.push('Начальная точка не найдена');
+  }
+  if (body.toPointId && !db.points.some((point) => point.id === body.toPointId)) {
+    errors.push('Конечная точка не найдена');
+  }
+  if (!TRANSFER_MODES.has(body.mode)) errors.push('Выберите способ передвижения');
+  if (!body.date) errors.push('Дата отправления обязательна');
+  if (!body.startTime) errors.push('Время отправления обязательно');
+  if (!body.endTime) errors.push('Время прибытия обязательно');
+  if (body.endDate && body.endDate < body.date) errors.push('Дата прибытия не может быть раньше даты отправления');
+  if ((body.endDate || body.date) === body.date && body.endTime && body.endTime < body.startTime) {
+    errors.push('Время прибытия не может быть раньше отправления');
+  }
+  return errors;
+}
+
+function findItem(collection, itemId) {
+  return collection.findIndex((item) => item.id === itemId);
+}
+
+const server = http.createServer(async (req, res) => {
+  const parsed = url.parse(req.url, true);
+  const pathname = parsed.pathname;
+  const pointMatch = pathname.match(/^\/api\/points\/([^/]+)$/);
+
+  try {
+    if (req.method === 'GET' && pathname === '/api/points') {
+      return sendJson(res, 200, readDb().points);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/points') {
+      const body = await parseBody(req);
+      const errors = validatePoint(body);
+      if (errors.length) return sendJson(res, 400, { errors });
+      const db = readDb();
+      const item = {
+        id: id('p'),
+        name: body.name.trim(),
+        lat: Number(body.lat),
+        lng: Number(body.lng),
+        description: body.description?.trim() || '',
+      };
+      db.points.push(item);
+      writeDb(db);
+      return sendJson(res, 201, item);
+    }
+
+    if (pointMatch && req.method === 'PUT') {
+      const body = await parseBody(req);
+      const errors = validatePoint(body);
+      if (errors.length) return sendJson(res, 400, { errors });
+      const db = readDb();
+      const index = findItem(db.points, pointMatch[1]);
+      if (index < 0) return sendJson(res, 404, { error: 'Точка не найдена' });
+      db.points[index] = {
+        ...db.points[index],
+        name: body.name.trim(),
+        lat: Number(body.lat),
+        lng: Number(body.lng),
+        description: body.description?.trim() || '',
+        id: pointMatch[1],
+      };
+      writeDb(db);
+      return sendJson(res, 200, db.points[index]);
+    }
+
+    if (req.method === 'GET' && (pathname === '/api/events' || pathname === '/api/transfers')) {
+      const db = readDb();
+      const key = pathname === '/api/events' ? 'events' : 'transfers';
+      const items = parsed.query.date
+        ? db[key].filter((item) => isVisibleOnDate(item, parsed.query.date))
+        : db[key];
+      return sendJson(res, 200, items);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/events') {
+      const body = await parseBody(req);
+      const errors = validateEvent(body);
+      if (errors.length) return sendJson(res, 400, { errors });
+      const db = readDb();
+      const item = { ...body, id: id('e'), createdAt: new Date().toISOString() };
+      db.events.push(item);
+      writeDb(db);
+      return sendJson(res, 201, item);
+    }
+
+    const eventMatch = pathname.match(/^\/api\/events\/([^/]+)$/);
+    if (eventMatch && req.method === 'PUT') {
+      const body = await parseBody(req);
+      const errors = validateEvent(body);
+      if (errors.length) return sendJson(res, 400, { errors });
+      const db = readDb();
+      const index = findItem(db.events, eventMatch[1]);
+      if (index < 0) return sendJson(res, 404, { error: 'Событие не найдено' });
+      db.events[index] = { ...db.events[index], ...body, id: eventMatch[1] };
+      writeDb(db);
+      return sendJson(res, 200, db.events[index]);
+    }
+
+    if (eventMatch && req.method === 'DELETE') {
+      const db = readDb();
+      db.events = db.events.filter((item) => item.id !== eventMatch[1]);
+      writeDb(db);
+      return sendNoContent(res);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/transfers') {
+      const body = await parseBody(req);
+      const db = readDb();
+      const errors = validateTransfer(body, db);
+      if (errors.length) return sendJson(res, 400, { errors });
+      const item = {
+        ...body,
+        endDate: body.endDate || body.date,
+        id: id('t'),
+        createdAt: new Date().toISOString(),
+      };
+      db.transfers.push(item);
+      writeDb(db);
+      return sendJson(res, 201, item);
+    }
+
+    const transferMatch = pathname.match(/^\/api\/transfers\/([^/]+)$/);
+    if (transferMatch && req.method === 'PUT') {
+      const body = await parseBody(req);
+      const db = readDb();
+      const errors = validateTransfer(body, db);
+      if (errors.length) return sendJson(res, 400, { errors });
+      const index = findItem(db.transfers, transferMatch[1]);
+      if (index < 0) return sendJson(res, 404, { error: 'Перемещение не найдено' });
+      db.transfers[index] = {
+        ...db.transfers[index],
+        ...body,
+        endDate: body.endDate || body.date,
+        id: transferMatch[1],
+      };
+      writeDb(db);
+      return sendJson(res, 200, db.transfers[index]);
+    }
+
+    if (transferMatch && req.method === 'DELETE') {
+      const db = readDb();
+      db.transfers = db.transfers.filter((item) => item.id !== transferMatch[1]);
+      writeDb(db);
+      return sendNoContent(res);
+    }
+
+    if (pointMatch && req.method === 'DELETE') {
+      const db = readDb();
+      db.points = db.points.filter((point) => point.id !== pointMatch[1]);
+      db.events = db.events.map((event) => (
+        event.pointId === pointMatch[1] ? { ...event, pointId: null } : event
+      ));
+      db.transfers = db.transfers.filter(
+        (transfer) => transfer.fromPointId !== pointMatch[1] && transfer.toPointId !== pointMatch[1]
+      );
+      writeDb(db);
+      return sendNoContent(res);
+    }
+
+    if (req.method === 'GET') {
+      const requestedPath = pathname === '/' ? '/index.html' : pathname;
+      const filePath = path.resolve(PUBLIC, `.${requestedPath}`);
+      if (filePath.startsWith(`${PUBLIC}${path.sep}`) && fs.existsSync(filePath)) {
+        const extension = path.extname(filePath);
+        res.writeHead(200, { 'Content-Type': MIME_TYPES[extension] || 'application/octet-stream' });
+        return fs.createReadStream(filePath).pipe(res);
+      }
+    }
+
+    return sendJson(res, 404, { error: 'Not found' });
+  } catch (error) {
+    return sendJson(res, 500, { error: error.message });
+  }
+});
+
+server.listen(PORT, () => console.log(`TravelHub: http://localhost:${PORT}`));
