@@ -24,6 +24,7 @@ const TRANSFER_MODES = new Set(['walking', 'car', 'train', 'plane', 'other']);
 function readDb() {
   const data = JSON.parse(fs.readFileSync(DB, 'utf8'));
   return {
+    attractions: data.attractions || [],
     points: Array.isArray(data.points) ? data.points : [],
     events: Array.isArray(data.events) ? data.events : [],
     transfers: Array.isArray(data.transfers) ? data.transfers : [],
@@ -120,12 +121,15 @@ function findItem(collection, itemId) {
   return collection.findIndex((item) => item.id === itemId);
 }
 
+function withUtc(b){const out={...b}; out.startAt=new Date(`${out.date}T${out.startTime}`).toISOString(); if(out.endTime){const endDate=out.endDate||out.date; out.endAt=new Date(`${endDate}T${out.endTime}`).toISOString();}else delete out.endAt; return out}
+
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const pathname = parsed.pathname;
   const pointMatch = pathname.match(/^\/api\/points\/([^/]+)$/);
 
   try {
+    if(req.method==='GET'&&pathname==='/api/attractions')return sendJson(res,200,readDb().attractions||[]);const ar=pathname.match(/^\/api\/attractions\/([^/]+)\/reviews$/);if(ar&&req.method==='POST'){const b=await parseBody(req);if(!b.name?.trim()||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5||!b.text?.trim())return sendJson(res,400,{errors:['Имя, оценка от 1 до 5 и текст обязательны']});const d=readDb(),a=(d.attractions||[]).find(x=>x.id===ar[1]);if(!a)return sendJson(res,404,{error:'Точка не найдена'});const review={id:'r_'+Date.now(),name:b.name.trim(),rating:Number(b.rating),text:b.text.trim()};a.reviews=[...(a.reviews||[]),review];writeDb(d);return sendJson(res,201,review)}
     if (req.method === 'GET' && pathname === '/api/points') {
       return sendJson(res, 200, readDb().points);
     }
@@ -180,7 +184,7 @@ const server = http.createServer(async (req, res) => {
       const errors = validateEvent(body);
       if (errors.length) return sendJson(res, 400, { errors });
       const db = readDb();
-      const item = { ...body, id: id('e'), createdAt: new Date().toISOString() };
+      const item = { ...withUtc(body), id: id('e'), createdAt: new Date().toISOString() };
       db.events.push(item);
       writeDb(db);
       return sendJson(res, 201, item);
@@ -194,7 +198,7 @@ const server = http.createServer(async (req, res) => {
       const db = readDb();
       const index = findItem(db.events, eventMatch[1]);
       if (index < 0) return sendJson(res, 404, { error: 'Событие не найдено' });
-      db.events[index] = { ...db.events[index], ...body, id: eventMatch[1] };
+      db.events[index] = { ...db.events[index], ...withUtc(body), id: eventMatch[1] };
       writeDb(db);
       return sendJson(res, 200, db.events[index]);
     }

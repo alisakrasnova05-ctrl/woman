@@ -1,5 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 
+let attractions=[],userPosition=null,userMarker=null,watchId=null;
 let points = [];
 let events = [];
 let transfers = [];
@@ -62,6 +63,10 @@ async function loadData() {
 
 async function init() {
   await loadData();
+  attractions=await api('/api/attractions');
+  $('#attractionId').innerHTML='<option value="">Без экскурсионной точки</option>'+attractions.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  renderAttractions();
+  attractions.forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
   const availableDates = dates();
   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
   fillPointSelects();
@@ -177,28 +182,7 @@ function render() {
   drawMap(items);
 }
 
-function eventCard(event) {
-  const point = points.find((item) => item.id === event.pointId);
-  const key = itemKey('event', event.id);
-  const materials = (event.materials || [])
-    .filter(Boolean)
-    .map((material) => `<img src="${esc(material)}" alt="" onerror="this.style.display='none'">`)
-    .join('');
-
-  return `
-    <article class="timeline-item event ${selectedKey === key ? 'selected' : ''}" data-kind="event" data-id="${esc(event.id)}">
-      <div class="event-actions">
-        <button class="icon" type="button" data-edit-event="${esc(event.id)}">✎</button>
-        <button class="icon" type="button" data-delete-event="${esc(event.id)}">×</button>
-      </div>
-      <div class="event-time">${eventIcons[event.type] || '✨'} ${esc(event.startTime)}${event.endTime ? ` — ${esc(event.endTime)}` : ''}${event.endDate && event.endDate !== event.date ? ` · ${esc(event.endDate)}` : ''}</div>
-      <div class="event-title">${esc(event.title)}</div>
-      <div class="event-meta">${point ? `📍 ${esc(point.name)}` : 'Без геоточки'}</div>
-      ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
-      ${materials ? `<div class="materials">${materials}</div>` : ''}
-    </article>
-  `;
-}
+function eventCard(event){return featureCard(event)}
 
 function transferCard(transfer) {
   const from = points.find((item) => item.id === transfer.fromPointId);
@@ -398,6 +382,7 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     endTime: $('#endTime').value,
     endDate: $('#endDate').value || $('#date').value,
     pointId: $('#pointId').value || null,
+    attractionId: $('#attractionId').value || null,
     description: $('#description').value,
     bookingUrl: $('#bookingUrl').value,
     materials: $('#materials').value.split(',').map((value) => value.trim()).filter(Boolean),
@@ -500,6 +485,23 @@ function esc(value = '') {
     "'": '&#39;',
   }[character]));
 }
+
+function updateClock(){const el=$('#localClock');if(el){const now=new Date();el.textContent=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'}).format(now)}}
+function geoMessage(msg){let el=$('#geoStatus');if(!el){el=document.createElement('div');el.id='geoStatus';$('#timeline').before(el)}el.className='geo-status';el.textContent=msg}
+function locate(){if(!navigator.geolocation){geoMessage('Геолокация недоступна в этом браузере.');return}geoMessage('Запрашиваю разрешение на геолокацию…');const success=pos=>{userPosition={lat:pos.coords.latitude,lng:pos.coords.longitude};if(!userMarker){userMarker=L.marker([userPosition.lat,userPosition.lng],{icon:L.divIcon({className:'user-location',iconSize:[18,18]})}).addTo(map).bindPopup('Вы здесь')}else userMarker.setLatLng([userPosition.lat,userPosition.lng]);const nearest=points.map(p=>({...p,d:distanceKm(userPosition,p)})).sort((a,b)=>a.d-b.d)[0];geoMessage(nearest?`Вы здесь. Ближайшая точка: ${nearest.name} · ${fmtDistance(nearest.d)}`:'Позиция определена.');render()}
+const error=err=>{const msg=err.code===1?'Доступ к геолокации запрещён. Разрешите её в настройках браузера или продолжайте без неё.':err.code===2?'Позиция недоступна. Проверьте GPS или сеть.':'Геолокация не ответила вовремя. Попробуйте ещё раз.';geoMessage(msg)};navigator.geolocation.getCurrentPosition(success,error,{enableHighAccuracy:true,timeout:10000});if(watchId===null)watchId=navigator.geolocation.watchPosition(success,error,{enableHighAccuracy:true,maximumAge:5000,timeout:15000})}
+function isNow(e){if(!e.startAt)return false;const now=Date.now(),start=Date.parse(e.startAt),end=e.endAt?Date.parse(e.endAt):start+60000;return now>=start&&now<=end}
+function distanceKm(a,b){const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLon=(b.lng-a.lng)*Math.PI/180;const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
+function fmtDistance(k){return k<1?Math.round(k*1000)+' м':k.toFixed(1)+' км'}
+function offsetFor(tz){try{const parts=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'longOffset'}).formatToParts(new Date());return parts.find(x=>x.type==='timeZoneName')?.value.replace('GMT','UTC')||tz}catch{return tz}}
+function featureCard(e){const attraction=attractions.find(a=>a.id===e.attractionId);const p=points.find(p=>p.id===e.pointId);const mats=(e.materials||[]).filter(Boolean).map(u=>`<img src="${u}" onerror="this.style.display='none'">`).join('');return `<article class="timeline-item event ${selectedKey===itemKey('event',e.id)?'selected':''}" data-kind="event" data-id="${e.id}"><div class="event-actions"><button class="icon" data-edit-event="${e.id}">✎</button><button class="icon" data-delete-event="${e.id}">×</button></div><div class="event-time">${eventIcons[e.type]||'✨'} ${e.startTime}${e.endTime?' — '+e.endTime:''} ${offsetFor(points.find(p=>p.id===e.pointId)?.timezone||'Europe/Moscow')}${isNow(e)?'<span class="now-badge">идёт сейчас</span>':''}${e.endDate&&e.endDate!==e.date?' · '+e.endDate:''}</div><div class="event-title">${esc(e.title)}</div><div class="event-meta">${p? '📍 '+esc(p.name):'Без геоточки'}</div>${e.description?`<div class="event-desc">${esc(e.description)}</div>`:''}${attraction?`<div class="event-meta">📸 ${esc(attraction.name)}</div><div class="materials">${(attraction.photos||[]).slice(0,3).map(u=>`<img src="${u}" onerror="this.style.display='none'">`).join('')}</div>`:''}${userPosition&&p?`<div class="distance">${fmtDistance(distanceKm(userPosition,p))} до места <a class="route-link" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}">Построить маршрут</a></div>`:''}${e.bookingUrl?`<div class="event-meta"><a href="${esc(e.bookingUrl)}" target="_blank" rel="noopener">🎟 Бронь / билет</a></div>`:''}${mats?`<div class="materials">${mats}</div>`:''}</article>`}
+function renderAttractions(){$('#attractions').innerHTML=attractions.map(a=>`<div class="attraction-card" data-attraction="${a.id}"><img src="${a.photos?.[0]||''}" onerror="this.style.display='none'"><b>${esc(a.name)}</b><span class="stars">${stars(avg(a))}</span></div>`).join('');document.querySelectorAll('[data-attraction]').forEach(el=>el.onclick=()=>openAttraction(el.dataset.attraction));}
+function avg(a){const r=a.reviews||[];return r.length?r.reduce((x,y)=>x+y.rating,0)/r.length:0}
+function stars(n){return '★★★★★'.slice(0,Math.round(n))+'☆☆☆☆☆'.slice(0,5-Math.round(n))}
+function openAttraction(id){const a=attractions.find(x=>x.id===id);if(!a)return;$('#placeContent').innerHTML=`<h2>${esc(a.name)}</h2><div class="place-photos">${(a.photos||[]).map(u=>`<img src="${u}" onerror="this.style.display='none'">`).join('')}</div><p>${esc(a.description)}</p><div class="stars">${stars(avg(a))} <small>${avg(a).toFixed(1)} / 5 (${(a.reviews||[]).length})</small></div><h3>Отзывы</h3>${(a.reviews||[]).map(r=>`<div class="review"><strong>${esc(r.name)} · <span class="stars">${stars(r.rating)}</span></strong><p>${esc(r.text)}</p></div>`).join('')}`;$('#reviewForm').dataset.attraction=id;$('#reviewForm').reset();$('#reviewError').textContent='';$('#attractionDialog').showModal();const m=attractionMarkers[id];if(m){map.setView([a.lat,a.lng],15);m.openPopup()}}
+const attractionMarkers={};
+
+$('#locateBtn').onclick=locate;setInterval(()=>{updateClock();document.querySelectorAll('.timeline-item[data-kind="event"]').forEach(el=>{const e=events.find(e=>e.id===el.dataset.id);if(e)el.querySelector('.event-time')?.classList.toggle('now-badge',isNow(e))})},1000);updateClock();$('#placeClose').onclick=()=>$('#attractionDialog').close();$('#reviewForm').onsubmit=async ev=>{ev.preventDefault();const id=ev.currentTarget.dataset.attraction;try{await api('/api/attractions/'+id+'/reviews',{method:'POST',body:JSON.stringify({name:$('#reviewName').value,rating:Number($('#reviewRating').value),text:$('#reviewText').value})});attractions=await api('/api/attractions');renderAttractions();openAttraction(id)}catch(e){$('#reviewError').textContent=e.message}};
 
 init().catch((error) => {
   $('#timeline').innerHTML = `<div class="error">Не удалось загрузить данные: ${esc(error.message)}</div>`;

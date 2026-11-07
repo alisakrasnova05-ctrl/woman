@@ -5,23 +5,149 @@
       "name": "Красная площадь",
       "lat": 55.7539,
       "lng": 37.6208,
-      "description": "Центр Москвы"
+      "description": "Центр Москвы",
+      "timezone": "Europe/Moscow"
     },
     {
       "id": "p2",
       "name": "Третьяковская галерея",
       "lat": 55.7415,
       "lng": 37.6208,
-      "description": "Музей русского искусства"
+      "description": "Музей русского искусства",
+      "timezone": "Europe/Moscow"
     },
     {
       "id": "p3",
       "name": "Патриаршие пруды",
       "lat": 55.7666,
       "lng": 37.5922,
-      "description": "Прогулочная зона"
+      "description": "Прогулочная зона",
+      "timezone": "Europe/Moscow"
     }
   ],
   "events": [],
-  "transfers": []
+  "transfers": [],
+  "attractions": [
+    {
+      "id": "a1",
+      "name": "Казанский кремль",
+      "lat": 55.7982,
+      "lng": 49.1056,
+      "description": "Историко-архитектурный ансамбль в центре Казани с белокаменными стенами и башнями.",
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Kazan_Kremlin_01.jpg/640px-Kazan_Kremlin_01.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Kazan_Kremlin_Qolsharif_Mosque.jpg/640px-Kazan_Kremlin_Qolsharif_Mosque.jpg"
+      ],
+      "reviews": [
+        {
+          "id": "r1",
+          "name": "Анна",
+          "rating": 5,
+          "text": "Очень красивое место, лучше приходить утром."
+        },
+        {
+          "id": "r2",
+          "name": "Илья",
+          "rating": 4,
+          "text": "Много истории и отличные виды на город."
+        }
+      ],
+      "timezone": "Europe/Moscow"
+    },
+    {
+      "id": "a2",
+      "name": "Мечеть Кул-Шариф",
+      "lat": 55.7984,
+      "lng": 49.1052,
+      "description": "Главная мечеть Казанского кремля с узнаваемыми голубыми куполами.",
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Qolsharif_mosque_Kazan.jpg/640px-Qolsharif_mosque_Kazan.jpg"
+      ],
+      "reviews": [
+        {
+          "id": "r3",
+          "name": "Мария",
+          "rating": 5,
+          "text": "Впечатляющая архитектура и свет внутри."
+        }
+      ],
+      "timezone": "Europe/Moscow"
+    },
+    {
+      "id": "a3",
+      "name": "Улица Баумана",
+      "lat": 55.7879,
+      "lng": 49.1221,
+      "description": "Пешеходная улица с кафе, историческими зданиями и уличными музыкантами.",
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Baumana_street_Kazan.jpg/640px-Baumana_street_Kazan.jpg"
+      ],
+      "reviews": [
+        {
+          "id": "r4",
+          "name": "Дмитрий",
+          "rating": 4,
+          "text": "Отличный маршрут для вечерней прогулки."
+        }
+      ],
+      "timezone": "Europe/Moscow"
+    },
+    {
+      "id": "a4",
+      "name": "Дворец земледельцев",
+      "lat": 55.8004,
+      "lng": 49.1075,
+      "description": "Парадное здание у Кремлёвской набережной с большим бронзовым деревом на фасаде.",
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Palace_of_Farmers_Kazan.jpg/640px-Palace_of_Farmers_Kazan.jpg"
+      ],
+      "reviews": [
+        {
+          "id": "r5",
+          "name": "Олег",
+          "rating": 5,
+          "text": "Красиво подсвечивается вечером."
+        }
+      ],
+      "timezone": "Europe/Moscow"
+    },
+    {
+      "id": "a5",
+      "name": "Кремлёвская набережная",
+      "lat": 55.8025,
+      "lng": 49.1088,
+      "description": "Просторная прогулочная зона вдоль Казанки с видами на Кремль.",
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Kremlevskaya_embankment_Kazan.jpg/640px-Kremlevskaya_embankment_Kazan.jpg"
+      ],
+      "reviews": [
+        {
+          "id": "r6",
+          "name": "Светлана",
+          "rating": 5,
+          "text": "Приятно гулять на закате."
+        }
+      ],
+      "timezone": "Europe/Moscow"
+    },
+    {
+      "id": "a6",
+      "name": "Храм всех религий",
+      "lat": 55.8178,
+      "lng": 48.9749,
+      "description": "Необычный архитектурный комплекс в посёлке Старое Аракчино.",
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Temple_of_All_Religions_Kazan.jpg/640px-Temple_of_All_Religions_Kazan.jpg"
+      ],
+      "reviews": [
+        {
+          "id": "r7",
+          "name": "Николай",
+          "rating": 4,
+          "text": "Необычное место, стоит заложить время на дорогу."
+        }
+      ],
+      "timezone": "Europe/Moscow"
+    }
+  ]
 }
