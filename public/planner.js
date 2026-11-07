@@ -1,11 +1,14 @@
 (() => {
   const $ = (selector) => document.querySelector(selector);
   const today = new Date();
+  const params = new URLSearchParams(location.search);
+  const tripId = params.get('trip');
+  const storageKey = key => tripId ? `${key}:${tripId}` : key;
   const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const parseDate = (key) => new Date(`${key}T12:00:00`);
   const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const headingMonths = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-  const load = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } };
+  const load = (key, fallback) => { try { return JSON.parse(localStorage.getItem(storageKey(key))) || fallback; } catch { return fallback; } };
   let view = new Date(today.getFullYear(), today.getMonth(), 1);
   let selected = load('travelhub-selected-day', dateKey(today));
   let rangeStart = load('travelhub-trip-start', '');
@@ -17,8 +20,8 @@
   $('#yearSelect').innerHTML = yearOptions.join('');
 
   function saveRange() {
-    localStorage.setItem('travelhub-trip-start', rangeStart);
-    localStorage.setItem('travelhub-trip-end', rangeEnd);
+    localStorage.setItem(storageKey('travelhub-trip-start'), JSON.stringify(rangeStart));
+    localStorage.setItem(storageKey('travelhub-trip-end'), JSON.stringify(rangeEnd));
   }
 
   function renderCalendar() {
@@ -65,7 +68,7 @@
 
   function chooseDay(key) {
     selected = key;
-    localStorage.setItem('travelhub-selected-day', selected);
+    localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));
     const date = parseDate(key);
     if (date.getMonth() !== view.getMonth() || date.getFullYear() !== view.getFullYear()) {
       view = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -103,12 +106,12 @@
         const current = notes[selected] || [];
         current[Number(row.dataset.index)][input.dataset.field] = input.value;
         notes[selected] = current;
-        localStorage.setItem('travelhub-day-notes', JSON.stringify(notes));
+        localStorage.setItem(storageKey('travelhub-day-notes'), JSON.stringify(notes));
         $('#eventCount').textContent = `${current.length} ${plural(current.length, 'событие', 'события', 'событий')}`;
       }));
       row.querySelector('.delete-note').addEventListener('click', () => {
         notes[selected].splice(Number(row.dataset.index), 1);
-        localStorage.setItem('travelhub-day-notes', JSON.stringify(notes));
+        localStorage.setItem(storageKey('travelhub-day-notes'), JSON.stringify(notes));
         renderNotes();
       });
     });
@@ -131,13 +134,39 @@
   $('#todayBtn').addEventListener('click', () => { view = new Date(today.getFullYear(), today.getMonth(), 1); chooseDay(dateKey(today)); });
   $('#addEventBtn').addEventListener('click', () => {
     notes[selected] = [...(notes[selected] || []), { startTime: '', endTime: '', title: '' }];
-    localStorage.setItem('travelhub-day-notes', JSON.stringify(notes));
+    localStorage.setItem(storageKey('travelhub-day-notes'), JSON.stringify(notes));
     renderNotes();
     $('#notesRows .note-row:last-child input[type="time"]').focus();
   });
 
-  const selectedDate = parseDate(selected);
-  view = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-  renderCalendar();
-  renderNotes();
+  async function init() {
+    if (tripId) {
+      const response = await fetch('/api/trips');
+      if (!response.ok) throw Error('Не удалось загрузить путешествие.');
+      const trips = await response.json();
+      const trip = trips.find(item => item.id === tripId);
+      if (!trip) throw Error('Путешествие не найдено. Вернитесь на главную.');
+      $('.intro h1').textContent = trip.title;
+      document.title = `${trip.title} — календарь`;
+      rangeStart = rangeStart || trip.startDate;
+      rangeEnd = rangeEnd || trip.endDate;
+      document.querySelectorAll('.map-link,.map-action').forEach(link => {
+        if (link.getAttribute('href') === '/trip') link.href = '/trip?' + new URLSearchParams({trip:tripId});
+      });
+      const m = Number(params.get('month')), y = Number(params.get('year'));
+      const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : trip.month;
+      const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : trip.year;
+      view = new Date(year, month - 1, 1);
+      if (!localStorage.getItem(storageKey('travelhub-selected-day'))) selected = dateKey(view);
+    } else {
+      const selectedDate = parseDate(selected);
+      view = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    }
+    renderCalendar();
+    renderNotes();
+  }
+  init().catch(error => {
+    $('.intro-copy').textContent = error.message;
+    $('#addEventBtn').disabled = true;
+  });
 })();

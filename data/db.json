@@ -18,6 +18,46 @@
       "startDate": "2029-05-01",
       "endDate": "2029-05-04",
       "createdAt": "2026-11-07T13:30:31.237Z"
+    },
+    {
+      "id": "trip_1794058626028_22gqj",
+      "title": "казань",
+      "destination": "казань",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T13:37:06.029Z"
+    },
+    {
+      "id": "trip_1794059257202_6gzxt",
+      "title": "байкал",
+      "destination": "байкал",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T13:47:37.202Z"
+    },
+    {
+      "id": "trip_1794059317372_gms0o",
+      "title": "байкал",
+      "destination": "байкал",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T13:48:37.372Z"
+    },
+    {
+      "id": "trip_1794059335136_hiy5m",
+      "title": "байкал",
+      "destination": "байкал",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T13:48:55.136Z"
     }
   ],
   "attractions": [
