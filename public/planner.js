@@ -14,23 +14,48 @@
   let rangeStart = load('travelhub-trip-start', '');
   let rangeEnd = load('travelhub-trip-end', '');
   let notes = load('travelhub-day-notes', {});
+  let tripEvents = [], tripPoints = [];
   let ticketDbPromise;
 
   const yearOptions = [];
   for (let year = 1900; year <= 2100; year += 1) yearOptions.push(`<option value="${year}">${year}</option>`);
   $('#yearSelect').innerHTML = yearOptions.join('');
 
-  function saveRange() {
-    localStorage.setItem(storageKey('travelhub-trip-start'), JSON.stringify(rangeStart));
-    localStorage.setItem(storageKey('travelhub-trip-end'), JSON.stringify(rangeEnd));
+  let rangePending = false;
+  let savedStart = rangeStart, savedEnd = rangeEnd;
+  let saving = false, saveError = '';
+  async function saveRange(start, end) {
+    if (saving) return;
+    saving = true; saveError = ''; renderCalendar();
+    try {
+      if (tripId) {
+        const response = await fetch('/api/trips/'+encodeURIComponent(tripId), {
+          method:'PATCH',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({startDate:start || null,endDate:end || null})
+        });
+        if(!response.ok) throw Error('Не удалось сохранить даты. Прежние даты сохранены; повторите выбор при восстановлении сети.');
+      }
+      savedStart = start; savedEnd = end;
+      try {
+        localStorage.setItem(storageKey('travelhub-trip-start'), JSON.stringify(start));
+        localStorage.setItem(storageKey('travelhub-trip-end'), JSON.stringify(end));
+        localStorage.setItem('glider-trips-updated', JSON.stringify({tripId,at:Date.now()}));
+      } catch { /* Server remains the source of truth if storage is unavailable. */ }
+    } catch(error) { saveError = error.message; }
+    finally {
+      rangeStart = savedStart; rangeEnd = savedEnd;
+      rangePending = false; saving = false; renderCalendar();
+    }
   }
 
   function renderCalendar() {
     $('#calendarTitle').textContent = `${headingMonths[view.getMonth()]} ${view.getFullYear()}`;
     $('#monthSelect').value = String(view.getMonth());
     $('#yearSelect').value = String(view.getFullYear());
-    $('#tripStartInput').value = rangeStart;
-    $('#tripEndInput').value = rangeEnd;
+    const count = rangeStart && rangeEnd ? Math.round((parseDate(rangeEnd)-parseDate(rangeStart))/86400000)+1 : 0;
+    const formatDay = key => parseDate(key).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+    $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeStart && rangeEnd ? `Поездка: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
+    $('#resetDatesBtn').disabled = saving || (!savedStart && !rangeStart);
     const first = new Date(view.getFullYear(), view.getMonth(), 1);
     const offset = (first.getDay() + 6) % 7;
     const start = new Date(view.getFullYear(), view.getMonth(), 1 - offset);
@@ -47,7 +72,7 @@
       if (key === rangeEnd && rangeEnd && rangeEnd !== rangeStart && validRange) classes.push('range-end');
       if (key === selected) classes.push('selected-day');
       if (key === dateKey(today)) classes.push('today');
-      cells.push(`<button type="button" class="${classes.join(' ')}" role="gridcell" aria-label="${day.getDate()} ${monthNames[day.getMonth()]} ${day.getFullYear()}" aria-pressed="${key === selected}" data-day="${key}">${day.getDate()}</button>`);
+      cells.push(`<button type="button" class="${classes.join(' ')}" ${saving ? 'disabled' : ''} role="gridcell" aria-label="${day.getDate()} ${monthNames[day.getMonth()]} ${day.getFullYear()}" aria-pressed="${key === selected}" data-day="${key}">${day.getDate()}</button>`);
     }
     $('#calendarGrid').innerHTML = cells.join('');
     $('#calendarGrid').querySelectorAll('[data-day]').forEach((button) => {
@@ -68,6 +93,14 @@
   }
 
   function chooseDay(key) {
+    if (saving) return;
+    saveError = '';
+    if (rangePending) {
+      rangeEnd = key;
+      if (rangeEnd < rangeStart) [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+      rangePending = false;
+      saveRange(rangeStart, rangeEnd);
+    } else { rangeStart = key; rangeEnd = ''; rangePending = true; }
     selected = key;
     localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));
     const date = parseDate(key);
@@ -76,16 +109,6 @@
     }
     renderCalendar();
     renderNotes();
-  }
-
-  function updateTripRange() {
-    rangeStart = $('#tripStartInput').value;
-    rangeEnd = $('#tripEndInput').value;
-    if (rangeStart && rangeEnd && rangeEnd < rangeStart) {
-      [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
-    }
-    saveRange();
-    renderCalendar();
   }
 
   function openTicketDb() {
@@ -145,6 +168,7 @@
   }
 
   function renderNotes() {
+    renderSavedContent();
     const date = parseDate(selected);
     $('#selectedDateLabel').textContent = `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     $('#notesTitle').textContent = 'Заметки на день';
@@ -230,10 +254,24 @@
     });
   }
 
+  function renderSavedContent() {
+    const events = tripEvents.filter(event => event.date === selected ||
+      (event.endDate && event.date < selected && event.endDate >= selected))
+      .sort((a,b) => (a.date+'T'+a.startTime).localeCompare(b.date+'T'+b.startTime));
+    const eventHtml = events.map(event => {
+      const point = tripPoints.find(p => p.id === event.pointId);
+      return `<li><strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
+    }).join('');
+    $('#savedTripContent').innerHTML = tripId ?
+      `<details open><summary>События поездки на выбранный день (${events.length})</summary>${eventHtml ? `<ul>${eventHtml}</ul>` : '<p>На этот день сохранённых событий нет.</p>'}</details>
+       <details><summary>Точки маршрута (${tripPoints.length})</summary><ul>${tripPoints.map(point => `<li>${escapeAttr(point.name)}</li>`).join('')}</ul></details>` : '';
+  }
+
   function escapeAttr(value) {
     return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
 
+  $('#resetDatesBtn').addEventListener('click', () => saveRange('', ''));
   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
   $('#nextMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); });
   function changeCalendarMonth() {
@@ -242,8 +280,7 @@
   }
   $('#monthSelect').addEventListener('change', changeCalendarMonth);
   $('#yearSelect').addEventListener('change', changeCalendarMonth);
-  $('#tripStartInput').addEventListener('change', updateTripRange);
-  $('#tripEndInput').addEventListener('change', updateTripRange);
+
   $('#todayBtn').addEventListener('click', () => { view = new Date(today.getFullYear(), today.getMonth(), 1); chooseDay(dateKey(today)); });
   $('#addEventBtn').addEventListener('click', () => {
     notes[selected] = [...(notes[selected] || []), { startTime: '', endTime: '', title: '' }];
@@ -258,18 +295,31 @@
       if (!response.ok) throw Error('Не удалось загрузить путешествие.');
       const trips = await response.json();
       const trip = trips.find(item => item.id === tripId);
-      if (!trip) throw Error('Путешествие не найдено. Вернитесь на главную.');
+      if (!trip) {
+        $('.intro-copy').textContent = 'Путешествие не найдено. Возвращаемся на главную…';
+        $('#addEventBtn').disabled = true;
+        sessionStorage.setItem('trip-navigation-message','Путешествие не найдено');
+        setTimeout(() => location.replace('/'), 1500);
+        return;
+      }
+      [tripPoints, tripEvents] = await Promise.all(['points','events'].map(async resource => {
+        const result = await fetch('/api/'+resource+'?'+new URLSearchParams({tripId}));
+        if(!result.ok) throw Error('Не удалось загрузить содержимое поездки. Попробуйте обновить страницу.');
+        return result.json();
+      }));
       $('.intro h1').textContent = trip.title;
       document.title = `${trip.title} — календарь`;
-      rangeStart = rangeStart || trip.startDate;
-      rangeEnd = rangeEnd || trip.endDate;
+      rangeStart = trip.startDate || '';
+      rangeEnd = trip.endDate || '';
+      savedStart = rangeStart; savedEnd = rangeEnd;
       document.querySelectorAll('.map-link,.map-action').forEach(link => {
         if (link.getAttribute('href') === '/trip') link.href = '/trip?' + new URLSearchParams({trip:tripId});
       });
       const m = Number(params.get('month')), y = Number(params.get('year'));
-      const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : trip.month;
-      const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : trip.year;
-      view = new Date(year, month - 1, 1);
+      const start = trip.startDate ? parseDate(trip.startDate) : today;
+      const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : (trip.month || start.getMonth()+1);
+      const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : (trip.year || start.getFullYear());
+      view = trip.startDate ? new Date(start.getFullYear(), start.getMonth(), 1) : new Date(year, month - 1, 1);
       if (!localStorage.getItem(storageKey('travelhub-selected-day'))) selected = dateKey(view);
     } else {
       const selectedDate = parseDate(selected);

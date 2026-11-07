@@ -240,8 +240,20 @@ const server = http.createServer(async (req, res) => {
         ...trip,
         pointsCount: db.points.filter((p) => (p.tripId || 'legacy') === trip.id).length,
         eventsCount: db.events.filter((e) => (e.tripId || 'legacy') === trip.id).length,
-        days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 1,
+        days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
       })));
+    }
+    const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
+    if (req.method === 'PATCH' && tripMatch) {
+      const body = await parseBody(req);
+      const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+      const clearing = body.startDate === null && body.endDate === null;
+      if (!clearing && (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate)) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
+      const db = readDb(), trip = db.trips.find(t => t.id === tripMatch[1]);
+      if(!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
+      if(clearing) Object.assign(trip,{startDate:null,endDate:null});
+      else Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4))});
+      writeDb(db); return sendJson(res,200,trip);
     }
     if (req.method === 'POST' && pathname === '/api/trips') {
       const body = await parseBody(req);

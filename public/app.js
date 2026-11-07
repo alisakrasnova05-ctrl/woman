@@ -5,6 +5,7 @@ let points = [];
 let events = [];
 let transfers = [];
 let tripStartDate = null;
+let tripEndDate = null;
 let selectedDate = '2025-06-12';
 let selectedKey = null;
 let markers = {};
@@ -72,8 +73,9 @@ async function init() {
   const trips = await api('/api/trips');
   const trip = trips.find(t => t.id === activeTripId);
   if (!trip) throw Error('Путешествие не найдено. Вернитесь на главную.');
-  document.querySelector('.trip').textContent = trip.title + ' · ' + trip.startDate;
+  document.querySelector('.trip').textContent = trip.title + ' · ' + (trip.startDate || 'Даты не выбраны');
   tripStartDate = trip.startDate;
+  tripEndDate = trip.endDate;
   selectedDate = trip.startDate;
   await loadData();
   if (trip.city && Number.isFinite(trip.city.latitude) && Number.isFinite(trip.city.longitude)) {
@@ -90,6 +92,7 @@ async function init() {
   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
   fillPointSelects();
   render();
+  window.loadCitySights(map, trip, async () => {await loadData();fillPointSelects();selectedDate=trip.startDate || dates()[0];render();});
 }
 
 function fillPointSelects() {
@@ -105,6 +108,14 @@ function fillPointSelects() {
 function dates() {
   const allItems = [...events, ...transfers];
   const dateSet = new Set();
+  if (tripStartDate && tripEndDate) {
+    const current = new Date(tripStartDate+'T00:00:00Z');
+    const end = new Date(tripEndDate+'T00:00:00Z');
+    while (current <= end) {
+      dateSet.add(current.toISOString().slice(0,10));
+      current.setUTCDate(current.getUTCDate()+1);
+    }
+  }
   allItems.forEach((item) => {
     if (!item.date) return;
     const endDate = item.endDate || item.date;

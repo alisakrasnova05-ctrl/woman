@@ -1,0 +1,88 @@
+--- a/public/home.js
++++ b/public/home.js
+@@ -1 +1,4 @@
+-const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate} — ${t.endDate}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>c.onclick=()=>location.href='/trip?trip='+c.dataset.id)}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href='/planner?'+new URLSearchParams({trip:t.id,month:t.month,year:t.year})}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
++function calendarUrl(trip){const date=new Date(trip.startDate+'T12:00:00');return '/planner?'+new URLSearchParams({trip:trip.id,month:trip.month||date.getMonth()+1,year:trip.year||date.getFullYear()})}
++const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate} — ${t.endDate}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>c.onclick=()=>{const trip=allTrips.find(t=>t.id===c.dataset.id);if(trip)location.href=calendarUrl(trip)})}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href=calendarUrl(t)}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
++
++const navigationMessage=sessionStorage.getItem('trip-navigation-message');if(navigationMessage){$('#formError').textContent=navigationMessage;sessionStorage.removeItem('trip-navigation-message')}
+--- a/public/planner.js
++++ b/public/planner.js
+@@ -14,6 +14,7 @@
+   let rangeStart = load('travelhub-trip-start', '');
+   let rangeEnd = load('travelhub-trip-end', '');
+   let notes = load('travelhub-day-notes', {});
++  let tripEvents = [], tripPoints = [];
+ 
+   const yearOptions = [];
+   for (let year = 1900; year <= 2100; year += 1) yearOptions.push(`<option value="${year}">${year}</option>`);
+@@ -88,6 +89,7 @@
+   }
+ 
+   function renderNotes() {
++    renderSavedContent();
+     const date = parseDate(selected);
+     $('#selectedDateLabel').textContent = `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+     $('#notesTitle').textContent = 'Заметки на день';
+@@ -115,6 +117,19 @@
+         renderNotes();
+       });
+     });
++  }
++
++  function renderSavedContent() {
++    const events = tripEvents.filter(event => event.date === selected ||
++      (event.endDate && event.date < selected && event.endDate >= selected))
++      .sort((a,b) => (a.date+'T'+a.startTime).localeCompare(b.date+'T'+b.startTime));
++    const eventHtml = events.map(event => {
++      const point = tripPoints.find(p => p.id === event.pointId);
++      return `<li><strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
++    }).join('');
++    $('#savedTripContent').innerHTML = tripId ?
++      `<details open><summary>События поездки на выбранный день (${events.length})</summary>${eventHtml ? `<ul>${eventHtml}</ul>` : '<p>На этот день сохранённых событий нет.</p>'}</details>
++       <details><summary>Точки маршрута (${tripPoints.length})</summary><ul>${tripPoints.map(point => `<li>${escapeAttr(point.name)}</li>`).join('')}</ul></details>` : '';
+   }
+ 
+   function escapeAttr(value) {
+@@ -145,7 +160,18 @@
+       if (!response.ok) throw Error('Не удалось загрузить путешествие.');
+       const trips = await response.json();
+       const trip = trips.find(item => item.id === tripId);
+-      if (!trip) throw Error('Путешествие не найдено. Вернитесь на главную.');
++      if (!trip) {
++        $('.intro-copy').textContent = 'Путешествие не найдено. Возвращаемся на главную…';
++        $('#addEventBtn').disabled = true;
++        sessionStorage.setItem('trip-navigation-message','Путешествие не найдено');
++        setTimeout(() => location.replace('/'), 1500);
++        return;
++      }
++      [tripPoints, tripEvents] = await Promise.all(['points','events'].map(async resource => {
++        const result = await fetch('/api/'+resource+'?'+new URLSearchParams({tripId}));
++        if(!result.ok) throw Error('Не удалось загрузить содержимое поездки. Попробуйте обновить страницу.');
++        return result.json();
++      }));
+       $('.intro h1').textContent = trip.title;
+       document.title = `${trip.title} — календарь`;
+       rangeStart = rangeStart || trip.startDate;
+@@ -154,8 +180,9 @@
+         if (link.getAttribute('href') === '/trip') link.href = '/trip?' + new URLSearchParams({trip:tripId});
+       });
+       const m = Number(params.get('month')), y = Number(params.get('year'));
+-      const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : trip.month;
+-      const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : trip.year;
++      const start = parseDate(trip.startDate);
++      const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : (trip.month || start.getMonth()+1);
++      const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : (trip.year || start.getFullYear());
+       view = new Date(year, month - 1, 1);
+       if (!localStorage.getItem(storageKey('travelhub-selected-day'))) selected = dateKey(view);
+     } else {
+--- a/public/planner.html
++++ b/public/planner.html
+@@ -57,6 +57,7 @@
+         <div class="notes-heading">
+           <div><p class="eyebrow">ВАШ ПЛАН</p><h2 id="notesTitle">Заметки на день</h2><p id="selectedDateLabel" class="selected-date-label"></p></div>
+         </div>
++        <section id="savedTripContent" aria-live="polite" aria-label="Сохранённые события и точки"></section>
+         <div class="notes-card">
+           <div class="notes-table-head"><span>НАЧАЛО</span><span>КОНЕЦ</span><span>СОБЫТИЕ И МЕСТО</span><span></span></div>
+           <div id="notesRows" class="notes-rows"></div>

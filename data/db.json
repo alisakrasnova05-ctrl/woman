@@ -45,8 +45,8 @@
       "destination": "байкал",
       "month": 11,
       "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
+      "startDate": "2026-11-03",
+      "endDate": "2026-11-11",
       "createdAt": "2026-11-07T13:48:37.372Z"
     },
     {
@@ -55,8 +55,8 @@
       "destination": "байкал",
       "month": 11,
       "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
+      "startDate": "2026-11-06",
+      "endDate": "2026-11-20",
       "createdAt": "2026-11-07T13:48:55.136Z"
     },
     {
@@ -73,10 +73,10 @@
       "id": "trip_1794060353046_rf1wg",
       "title": "пыавп",
       "destination": "пыавп",
-      "month": 11,
+      "month": 10,
       "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
+      "startDate": "2026-10-30",
+      "endDate": "2026-11-11",
       "createdAt": "2026-11-07T14:05:53.046Z"
     },
     {
@@ -107,6 +107,44 @@
       "startDate": "2026-11-01",
       "endDate": "2026-11-04",
       "createdAt": "2026-11-07T14:18:42.691Z"
+    },
+    {
+      "id": "trip_1794061557332_afxdx",
+      "title": "Чебоксарово",
+      "destination": "Чебоксарово",
+      "city": {
+        "id": 569699,
+        "name": "Чебоксарово",
+        "country": "Россия",
+        "admin1": "Оренбургская Область",
+        "latitude": 52.83333,
+        "longitude": 54.16667,
+        "timezone": "Asia/Yekaterinburg"
+      },
+      "month": 9,
+      "year": 2027,
+      "startDate": "2027-09-01",
+      "endDate": "2027-09-04",
+      "createdAt": "2026-11-07T14:25:57.332Z"
+    },
+    {
+      "id": "trip_1794061787949_p1ddj",
+      "title": "Осиново",
+      "destination": "Осиново",
+      "city": {
+        "id": 514460,
+        "name": "Осиново",
+        "country": "Россия",
+        "admin1": "Татарстан",
+        "latitude": 55.8809,
+        "longitude": 48.881,
+        "timezone": "Europe/Moscow"
+      },
+      "month": 9,
+      "year": 2027,
+      "startDate": "2027-09-01",
+      "endDate": "2027-09-04",
+      "createdAt": "2026-11-07T14:29:47.949Z"
     },
     {
       "id": "trip_1794060914640_p58y5",

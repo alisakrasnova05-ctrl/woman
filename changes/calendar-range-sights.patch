@@ -1,0 +1,226 @@
+--- a/public/planner.js
++++ b/public/planner.js
+@@ -20,17 +20,25 @@
+   for (let year = 1900; year <= 2100; year += 1) yearOptions.push(`<option value="${year}">${year}</option>`);
+   $('#yearSelect').innerHTML = yearOptions.join('');
+ 
++  let rangePending = false;
++  let saveQueue = Promise.resolve();
+   function saveRange() {
+     localStorage.setItem(storageKey('travelhub-trip-start'), JSON.stringify(rangeStart));
+     localStorage.setItem(storageKey('travelhub-trip-end'), JSON.stringify(rangeEnd));
++    if (tripId && rangeStart && rangeEnd) {
++      const body = JSON.stringify({startDate:rangeStart,endDate:rangeEnd});
++      saveQueue = saveQueue.catch(() => {}).then(async () => {
++        const response = await fetch('/api/trips/'+encodeURIComponent(tripId),{method:'PATCH',headers:{'Content-Type':'application/json'},body});
++        if(!response.ok) throw Error('Не удалось сохранить даты на сервере. Выберите диапазон повторно при восстановлении сети.');
++      }).catch(error => { $('#rangeHint').textContent = error.message; });
++    }
+   }
+ 
+   function renderCalendar() {
+     $('#calendarTitle').textContent = `${headingMonths[view.getMonth()]} ${view.getFullYear()}`;
+     $('#monthSelect').value = String(view.getMonth());
+     $('#yearSelect').value = String(view.getFullYear());
+-    $('#tripStartInput').value = rangeStart;
+-    $('#tripEndInput').value = rangeEnd;
++    $('#rangeHint').textContent = rangeStart && rangeEnd ? `Выбрано: ${parseDate(rangeStart).toLocaleDateString('ru-RU')} — ${parseDate(rangeEnd).toLocaleDateString('ru-RU')} (${Math.round((parseDate(rangeEnd)-parseDate(rangeStart))/86400000)+1} дн.)` : rangeStart ? 'Теперь выберите конец поездки' : 'Выберите начало поездки';
+     const first = new Date(view.getFullYear(), view.getMonth(), 1);
+     const offset = (first.getDay() + 6) % 7;
+     const start = new Date(view.getFullYear(), view.getMonth(), 1 - offset);
+@@ -68,6 +76,16 @@
+   }
+ 
+   function chooseDay(key) {
++    if (rangePending && key === rangeStart) {
++      rangeStart = ''; rangeEnd = ''; rangePending = false;
++    } else if (rangePending) {
++      rangeEnd = key;
++      if(rangeEnd < rangeStart) [rangeStart,rangeEnd] = [rangeEnd,rangeStart];
++      rangePending = false;
++    } else if (key === rangeStart || key === rangeEnd) {
++      rangeStart = ''; rangeEnd = ''; rangePending = false;
++    } else { rangeStart = key; rangeEnd = ''; rangePending = true; }
++    saveRange();
+     selected = key;
+     localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));
+     const date = parseDate(key);
+@@ -76,16 +94,6 @@
+     }
+     renderCalendar();
+     renderNotes();
+-  }
+-
+-  function updateTripRange() {
+-    rangeStart = $('#tripStartInput').value;
+-    rangeEnd = $('#tripEndInput').value;
+-    if (rangeStart && rangeEnd && rangeEnd < rangeStart) {
+-      [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+-    }
+-    saveRange();
+-    renderCalendar();
+   }
+ 
+   function renderNotes() {
+@@ -144,8 +152,7 @@
+   }
+   $('#monthSelect').addEventListener('change', changeCalendarMonth);
+   $('#yearSelect').addEventListener('change', changeCalendarMonth);
+-  $('#tripStartInput').addEventListener('change', updateTripRange);
+-  $('#tripEndInput').addEventListener('change', updateTripRange);
++
+   $('#todayBtn').addEventListener('click', () => { view = new Date(today.getFullYear(), today.getMonth(), 1); chooseDay(dateKey(today)); });
+   $('#addEventBtn').addEventListener('click', () => {
+     notes[selected] = [...(notes[selected] || []), { startTime: '', endTime: '', title: '' }];
+@@ -174,8 +181,8 @@
+       }));
+       $('.intro h1').textContent = trip.title;
+       document.title = `${trip.title} — календарь`;
+-      rangeStart = rangeStart || trip.startDate;
+-      rangeEnd = rangeEnd || trip.endDate;
++      rangeStart = trip.startDate || rangeStart;
++      rangeEnd = trip.endDate || rangeEnd;
+       document.querySelectorAll('.map-link,.map-action').forEach(link => {
+         if (link.getAttribute('href') === '/trip') link.href = '/trip?' + new URLSearchParams({trip:tripId});
+       });
+--- a/public/planner.html
++++ b/public/planner.html
+@@ -42,15 +42,10 @@
+             <button id="nextMonth" class="month-button" type="button" aria-label="Следующий месяц">›</button>
+           </div>
+         </div>
+-        <div class="trip-date-controls">
+-          <label>Начало поездки<input id="tripStartInput" type="date"></label>
+-          <span class="date-separator">—</span>
+-          <label>Конец поездки<input id="tripEndInput" type="date"></label>
+-          <span class="date-help">Выберите даты поездки — подсветка останется при переключении дней</span>
+-        </div>
++        <p class="range-instruction">Нажмите начало и конец поездки на календаре. Повторный клик по выбранной дате сбрасывает диапазон.</p>
+         <div class="weekdays" aria-hidden="true"><span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span></div>
+         <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь"></div>
+-        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint">Выбранный день отмечен более тёмным цветом</span></div>
++        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span></div>
+       </section>
+ 
+       <section class="notes-section" aria-labelledby="notesTitle">
+--- a/public/app.js
++++ b/public/app.js
+@@ -90,6 +90,7 @@
+   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
+   fillPointSelects();
+   render();
++  window.loadCitySights(map, trip, async () => {await loadData();fillPointSelects();selectedDate=trip.startDate;render();});
+ }
+ 
+ function fillPointSelects() {
+--- a/public/index.html
++++ b/public/index.html
+@@ -158,6 +158,6 @@
+         </div>
+     </dialog>
+     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+-    <script src="/app.js"></script>
++    <script src="/city-sights.js"></script><script src="/app.js"></script>
+   </body>
+ </html>
+--- a/public/planner.css
++++ b/public/planner.css
+@@ -3,3 +3,4 @@
+ .notes-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:13px}.map-action{min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 13px;border:1px solid #e4e7fa;border-radius:10px;background:#fff;color:#5963c9;text-decoration:none;font-size:12px;font-weight:700;transition:.2s}.map-action:hover{background:#f2f3ff;transform:translateY(-1px)}.map-action svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}@media(max-width:600px){.notes-actions{justify-content:stretch}.notes-actions>*{flex:1}.map-action{padding:0 8px}}
+ .month-picker-wrap{position:relative;display:block}.month-picker{height:34px;width:145px;margin:0;padding:0 9px;border:1px solid #e9edf2;border-radius:9px;background:#fff;color:#5963c9;font:600 12px 'DM Sans',sans-serif;cursor:pointer}.trip-date-controls{display:flex;align-items:flex-end;gap:11px;padding:13px 14px;margin-bottom:10px;border:1px solid #eff1f5;border-radius:12px;background:#fbfcfe}.trip-date-controls label{display:grid;gap:5px;color:#7c8799;font-size:10px;font-weight:700;letter-spacing:.2px}.trip-date-controls input{height:34px;width:150px;margin:0;padding:0 9px;border:1px solid #e6eaf0;border-radius:8px;background:#fff;color:#344054;font:500 12px 'DM Sans',sans-serif}.date-separator{padding-bottom:8px;color:#a7afbb}.date-help{margin-left:auto;padding-bottom:9px;color:#9ba4b1;font-size:10px}.notes-table-head,.note-row{grid-template-columns:105px 105px 1fr 35px}.notes-table-head{gap:8px}.note-row{gap:4px}@media(max-width:650px){.calendar-heading{align-items:flex-start;gap:12px;flex-direction:column}.month-controls{width:100%;justify-content:space-between}.month-picker{width:132px}.trip-date-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px}.trip-date-controls label{min-width:0}.trip-date-controls input{width:100%}.date-separator{display:none}.date-help{grid-column:1/-1;margin:0;padding:0}.notes-table-head,.note-row{grid-template-columns:76px 76px minmax(0,1fr) 28px}.notes-table-head{gap:4px;font-size:8px;padding:12px 8px}.notes-rows{padding:0 7px}.note-row{gap:2px}.note-row input{padding:8px 3px;font-size:11px}}
+ .month-picker-wrap{display:flex;align-items:center;gap:5px}.month-picker{width:130px;padding:0 7px}.month-picker.year-picker{width:82px}.month-picker:focus{outline:2px solid #dfe1fc;outline-offset:1px}@media(max-width:650px){.month-picker{width:115px}.month-picker.year-picker{width:76px}}
++.range-instruction{font-size:12px;color:#455957;margin:12px 0 18px}.calendar-day.in-trip{background:#f5d4bb;color:#203b3d}.calendar-day.range-start,.calendar-day.range-end{background:#a63d2b;color:#f5ebdc;border-color:#a63d2b}.calendar-footer{flex-wrap:wrap;gap:10px}#rangeHint{color:#455957}
+--- a/server/index.js
++++ b/server/index.js
+@@ -243,6 +243,16 @@
+         days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 1,
+       })));
+     }
++    const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
++    if (req.method === 'PATCH' && tripMatch) {
++      const body = await parseBody(req);
++      const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
++      if (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
++      const db = readDb(), trip = db.trips.find(t => t.id === tripMatch[1]);
++      if(!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
++      Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4))});
++      writeDb(db); return sendJson(res,200,trip);
++    }
+     if (req.method === 'POST' && pathname === '/api/trips') {
+       const body = await parseBody(req);
+       if (!body.destination?.trim()) return sendJson(res, 400, { errors: ['Укажите место назначения'] });
+--- /dev/null
++++ b/public/city-sights.js
+@@ -0,0 +1,64 @@
++// Optional OSM layer. Cache is independent of the user's route and events.
++window.loadCitySights = async function(map, trip, onAdded) {
++  const city = trip.city;
++  if (!city || !Number.isFinite(city.latitude) || !Number.isFinite(city.longitude)) return;
++  const notice = document.createElement('div');
++  notice.className = 'sights-status'; notice.setAttribute('role','status');
++  document.querySelector('.map-wrap').append(notice);
++  const cacheKey = `glider-sights-v1:${city.latitude}:${city.longitude}`;
++  let cached;
++  try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch {}
++  const status = text => { notice.textContent = text; };
++  const distance = p => (p.lat-city.latitude)**2 + ((p.lng-city.longitude)*Math.cos(city.latitude*Math.PI/180))**2;
++  let sights;
++  try {
++    if (cached && Date.now()-cached.saved < 86400000 && Array.isArray(cached.items)) sights = cached.items;
++    else {
++      status('Загружаем достопримечательности…');
++      const query = `[out:json][timeout:20];(nwr(around:8000,${city.latitude},${city.longitude})[tourism~"^(attraction|museum|viewpoint|gallery)$"];nwr(around:8000,${city.latitude},${city.longitude})[historic];);out center tags;`;
++      const response = await fetch('https://overpass-api.de/api/interpreter', {
++        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
++        body:new URLSearchParams({data:query}), signal:AbortSignal.timeout(25000)
++      });
++      if (!response.ok) throw Error('Overpass');
++      const result = await response.json();
++      if (result.remark || !Array.isArray(result.elements)) throw Error('Incomplete Overpass response');
++      sights = result.elements.map(e=>({osmId:`${e.type}/${e.id}`,name:e.tags?.['name:ru']||e.tags?.name||e.tags?.tourism||e.tags?.historic,lat:e.lat??e.center?.lat,lng:e.lon??e.center?.lon,tags:e.tags||{}}))
++        .filter(p=>p.name&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)).sort((a,b)=>distance(a)-distance(b)).slice(0,100);
++      try { localStorage.setItem(cacheKey,JSON.stringify({saved:Date.now(),items:sights})); } catch {}
++    }
++    status(sights.length ? `Достопримечательности OSM: ${sights.length} · радиус 8 км` : 'В радиусе 8 км достопримечательности не найдены');
++  } catch {
++    status('Не удалось загрузить достопримечательности');
++    if (!cached || !Array.isArray(cached.items)) return;
++    sights = cached.items; status('Не удалось обновить достопримечательности. Показан сохранённый кэш.');
++  }
++  sights.forEach(sight => {
++    const marker = L.marker([sight.lat,sight.lng], {zIndexOffset:300,riseOnHover:true,icon:L.divIcon({className:'sight-marker',html:'<span aria-hidden="true">★</span>',iconSize:[28,28],iconAnchor:[14,14]}),title:sight.name}).addTo(map);
++    const box=document.createElement('div'); box.className='sight-popup';
++    const title=document.createElement('strong'); title.textContent=sight.name;box.append(title);
++    const desc=document.createElement('p');desc.textContent=sight.tags.description||sight.tags['description:ru']||`Объект OpenStreetMap · ${sight.tags.tourism||sight.tags.historic||'достопримечательность'}`;box.append(desc);
++    if(sight.tags.opening_hours){const p=document.createElement('p');p.textContent='Часы работы: '+sight.tags.opening_hours;box.append(p)}
++    function link(label,href){try{const u=new URL(href);if(!['http:','https:'].includes(u.protocol))return;const a=document.createElement('a');a.textContent=label;a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';box.append(a,document.createElement('br'))}catch{}}
++    if(sight.tags.website)link('Сайт',sight.tags.website);
++    const wiki=sight.tags.wikipedia;
++    if(wiki&&/^[a-z-]+:/.test(wiki)){const [lang,...article]=wiki.split(':');link('Википедия',`https://${lang}.wikipedia.org/wiki/${encodeURIComponent(article.join(':'))}`)}
++    if(sight.tags.wikimedia_commons)link('Wikimedia Commons',`https://commons.wikimedia.org/wiki/${encodeURIComponent(sight.tags.wikimedia_commons)}`);
++    link('OpenStreetMap',`https://www.openstreetmap.org/${sight.osmId}`);
++    const button=document.createElement('button');button.type='button';button.className='primary';button.textContent='Добавить в маршрут';box.append(button);
++    const message=document.createElement('p');message.setAttribute('role','status');box.append(message);
++    let point=null,complete=false;
++    async function request(endpoint,data){const response=await fetch(endpoint+'?'+new URLSearchParams({tripId:trip.id}),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw Error((result.errors||[result.error]).join(', '));return result}
++    button.onclick=async()=>{
++      if(complete)return;button.disabled=true;message.textContent='Добавляем…';
++      try {
++        if(!point) point=await request('/api/points',{name:sight.name,lat:sight.lat,lng:sight.lng,description:desc.textContent});
++        const date=trip.startDate;const start=new Date(date+'T10:00:00');
++        await request('/api/events',{title:sight.name,type:'excursion',date,startTime:'10:00',pointId:point.id,description:desc.textContent,startAt:start.toISOString()});
++        complete=true;button.textContent='Добавлено';message.textContent='Точка и событие добавлены на первый день поездки, 10:00. Время можно изменить в таймлайне.';
++        await onAdded();
++      } catch(error){message.textContent=point?'Точка сохранена, но событие не добавлено. Нажмите ещё раз: '+error.message:'Не удалось добавить: '+error.message;button.disabled=false}
++    };
++    marker.bindPopup(box);
++  });
++};
+--- a/public/theme.css
++++ b/public/theme.css
+@@ -152,3 +152,5 @@
+ .city-suggestions button { display:block; width:100%; padding:12px; text-align:left; border:0; border-bottom:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:13px; }
+ .city-suggestions button:hover,.city-suggestions button:focus { background:var(--sand); }
+ .city-status { display:block; font-size:11px; font-weight:400; letter-spacing:normal; margin-top:6px; }
++.sights-status{position:absolute;bottom:24px;left:12px;z-index:500;max-width:85%;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12px;color:var(--ink)}
++.sight-marker{display:grid;place-items:center;background:var(--teal);color:var(--cream);border:2px solid var(--sand);border-radius:50%;filter:none!important}.sight-popup{max-width:270px}.sight-popup a{color:var(--accent-strong)}.sight-popup button{margin-top:10px}.sight-popup button:disabled{opacity:.65;cursor:default}

@@ -154,6 +154,8 @@ dialog::backdrop { background:#1f3b3db3; }
 .city-suggestions button { display:block; width:100%; padding:12px; text-align:left; border:0; border-bottom:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:13px; }
 .city-suggestions button:hover,.city-suggestions button:focus { background:var(--sand); }
 .city-status { display:block; font-size:11px; font-weight:400; letter-spacing:normal; margin-top:6px; }
+.sights-status{position:absolute;bottom:24px;left:12px;z-index:500;max-width:85%;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12px;color:var(--ink)}
+.sight-marker{display:grid;place-items:center;background:var(--teal);color:var(--cream);border:2px solid var(--sand);border-radius:50%;filter:none!important}.sight-popup{max-width:270px}.sight-popup a{color:var(--accent-strong)}.sight-popup button{margin-top:10px}.sight-popup button:disabled{opacity:.65;cursor:default}
 
 /* Shared vintage travel-poster finish for all application screens. */
 body { background:var(--cream); color:var(--ink); }

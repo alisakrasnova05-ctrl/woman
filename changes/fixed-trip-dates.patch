@@ -1,0 +1,196 @@
+--- a/public/planner.js
++++ b/public/planner.js
+@@ -21,16 +21,29 @@
+   $('#yearSelect').innerHTML = yearOptions.join('');
+ 
+   let rangePending = false;
+-  let saveQueue = Promise.resolve();
+-  function saveRange() {
+-    localStorage.setItem(storageKey('travelhub-trip-start'), JSON.stringify(rangeStart));
+-    localStorage.setItem(storageKey('travelhub-trip-end'), JSON.stringify(rangeEnd));
+-    if (tripId && rangeStart && rangeEnd) {
+-      const body = JSON.stringify({startDate:rangeStart,endDate:rangeEnd});
+-      saveQueue = saveQueue.catch(() => {}).then(async () => {
+-        const response = await fetch('/api/trips/'+encodeURIComponent(tripId),{method:'PATCH',headers:{'Content-Type':'application/json'},body});
+-        if(!response.ok) throw Error('Не удалось сохранить даты на сервере. Выберите диапазон повторно при восстановлении сети.');
+-      }).catch(error => { $('#rangeHint').textContent = error.message; });
++  let savedStart = rangeStart, savedEnd = rangeEnd;
++  let saving = false, saveError = '';
++  async function saveRange(start, end) {
++    if (saving) return;
++    saving = true; saveError = ''; renderCalendar();
++    try {
++      if (tripId) {
++        const response = await fetch('/api/trips/'+encodeURIComponent(tripId), {
++          method:'PATCH',headers:{'Content-Type':'application/json'},
++          body:JSON.stringify({startDate:start || null,endDate:end || null})
++        });
++        if(!response.ok) throw Error('Не удалось сохранить даты. Прежние даты сохранены; повторите выбор при восстановлении сети.');
++      }
++      savedStart = start; savedEnd = end;
++      try {
++        localStorage.setItem(storageKey('travelhub-trip-start'), JSON.stringify(start));
++        localStorage.setItem(storageKey('travelhub-trip-end'), JSON.stringify(end));
++        localStorage.setItem('glider-trips-updated', JSON.stringify({tripId,at:Date.now()}));
++      } catch { /* Server remains the source of truth if storage is unavailable. */ }
++    } catch(error) { saveError = error.message; }
++    finally {
++      rangeStart = savedStart; rangeEnd = savedEnd;
++      rangePending = false; saving = false; renderCalendar();
+     }
+   }
+ 
+@@ -38,7 +51,10 @@
+     $('#calendarTitle').textContent = `${headingMonths[view.getMonth()]} ${view.getFullYear()}`;
+     $('#monthSelect').value = String(view.getMonth());
+     $('#yearSelect').value = String(view.getFullYear());
+-    $('#rangeHint').textContent = rangeStart && rangeEnd ? `Выбрано: ${parseDate(rangeStart).toLocaleDateString('ru-RU')} — ${parseDate(rangeEnd).toLocaleDateString('ru-RU')} (${Math.round((parseDate(rangeEnd)-parseDate(rangeStart))/86400000)+1} дн.)` : rangeStart ? 'Теперь выберите конец поездки' : 'Выберите начало поездки';
++    const count = rangeStart && rangeEnd ? Math.round((parseDate(rangeEnd)-parseDate(rangeStart))/86400000)+1 : 0;
++    const formatDay = key => parseDate(key).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
++    $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания' : rangeStart && rangeEnd ? `Поездка: ${formatDay(rangeStart)} — ${formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
++    $('#resetDatesBtn').disabled = saving || (!savedStart && !rangeStart);
+     const first = new Date(view.getFullYear(), view.getMonth(), 1);
+     const offset = (first.getDay() + 6) % 7;
+     const start = new Date(view.getFullYear(), view.getMonth(), 1 - offset);
+@@ -55,7 +71,7 @@
+       if (key === rangeEnd && rangeEnd && rangeEnd !== rangeStart && validRange) classes.push('range-end');
+       if (key === selected) classes.push('selected-day');
+       if (key === dateKey(today)) classes.push('today');
+-      cells.push(`<button type="button" class="${classes.join(' ')}" role="gridcell" aria-label="${day.getDate()} ${monthNames[day.getMonth()]} ${day.getFullYear()}" aria-pressed="${key === selected}" data-day="${key}">${day.getDate()}</button>`);
++      cells.push(`<button type="button" class="${classes.join(' ')}" ${saving ? 'disabled' : ''} role="gridcell" aria-label="${day.getDate()} ${monthNames[day.getMonth()]} ${day.getFullYear()}" aria-pressed="${key === selected}" data-day="${key}">${day.getDate()}</button>`);
+     }
+     $('#calendarGrid').innerHTML = cells.join('');
+     $('#calendarGrid').querySelectorAll('[data-day]').forEach((button) => {
+@@ -76,16 +92,14 @@
+   }
+ 
+   function chooseDay(key) {
+-    if (rangePending && key === rangeStart) {
+-      rangeStart = ''; rangeEnd = ''; rangePending = false;
+-    } else if (rangePending) {
++    if (saving) return;
++    saveError = '';
++    if (rangePending) {
+       rangeEnd = key;
+-      if(rangeEnd < rangeStart) [rangeStart,rangeEnd] = [rangeEnd,rangeStart];
++      if (rangeEnd < rangeStart) [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+       rangePending = false;
+-    } else if (key === rangeStart || key === rangeEnd) {
+-      rangeStart = ''; rangeEnd = ''; rangePending = false;
++      saveRange(rangeStart, rangeEnd);
+     } else { rangeStart = key; rangeEnd = ''; rangePending = true; }
+-    saveRange();
+     selected = key;
+     localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));
+     const date = parseDate(key);
+@@ -144,6 +158,7 @@
+     return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+   }
+ 
++  $('#resetDatesBtn').addEventListener('click', () => saveRange('', ''));
+   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
+   $('#nextMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); });
+   function changeCalendarMonth() {
+@@ -181,16 +196,17 @@
+       }));
+       $('.intro h1').textContent = trip.title;
+       document.title = `${trip.title} — календарь`;
+-      rangeStart = trip.startDate || rangeStart;
+-      rangeEnd = trip.endDate || rangeEnd;
++      rangeStart = trip.startDate || '';
++      rangeEnd = trip.endDate || '';
++      savedStart = rangeStart; savedEnd = rangeEnd;
+       document.querySelectorAll('.map-link,.map-action').forEach(link => {
+         if (link.getAttribute('href') === '/trip') link.href = '/trip?' + new URLSearchParams({trip:tripId});
+       });
+       const m = Number(params.get('month')), y = Number(params.get('year'));
+-      const start = parseDate(trip.startDate);
++      const start = trip.startDate ? parseDate(trip.startDate) : today;
+       const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : (trip.month || start.getMonth()+1);
+       const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : (trip.year || start.getFullYear());
+-      view = new Date(year, month - 1, 1);
++      view = trip.startDate ? new Date(start.getFullYear(), start.getMonth(), 1) : new Date(year, month - 1, 1);
+       if (!localStorage.getItem(storageKey('travelhub-selected-day'))) selected = dateKey(view);
+     } else {
+       const selectedDate = parseDate(selected);
+--- a/public/planner.html
++++ b/public/planner.html
+@@ -42,10 +42,10 @@
+             <button id="nextMonth" class="month-button" type="button" aria-label="Следующий месяц">›</button>
+           </div>
+         </div>
+-        <p class="range-instruction">Нажмите начало и конец поездки на календаре. Повторный клик по выбранной дате сбрасывает диапазон.</p>
++        <p class="range-instruction">Нажмите начало и конец поездки на календаре. Новый клик начинает изменение дат.</p>
+         <div class="weekdays" aria-hidden="true"><span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span></div>
+         <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь"></div>
+-        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span></div>
++        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Сбросить даты</button></div>
+       </section>
+ 
+       <section class="notes-section" aria-labelledby="notesTitle">
+--- a/public/home.js
++++ b/public/home.js
+@@ -1,4 +1,6 @@
+ function calendarUrl(trip){const date=new Date(trip.startDate+'T12:00:00');return '/planner?'+new URLSearchParams({trip:trip.id,month:trip.month||date.getMonth()+1,year:trip.year||date.getFullYear()})}
+-const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate} — ${t.endDate}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>c.onclick=()=>{const trip=allTrips.find(t=>t.id===c.dataset.id);if(trip)location.href=calendarUrl(trip)})}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href=calendarUrl(t)}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
++const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate&&t.endDate?t.startDate+' — '+t.endDate:'Даты не выбраны'}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>c.onclick=()=>{const trip=allTrips.find(t=>t.id===c.dataset.id);if(trip)location.href=calendarUrl(trip)})}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href=calendarUrl(t)}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
+ 
+ const navigationMessage=sessionStorage.getItem('trip-navigation-message');if(navigationMessage){$('#formError').textContent=navigationMessage;sessionStorage.removeItem('trip-navigation-message')}
++
++function refreshTrips(){load().catch(()=>{})}window.addEventListener('pageshow',refreshTrips);window.addEventListener('focus',refreshTrips);window.addEventListener('storage',event=>{if(event.key==='glider-trips-updated')refreshTrips()});document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshTrips()});
+--- a/public/app.js
++++ b/public/app.js
+@@ -72,7 +72,7 @@
+   const trips = await api('/api/trips');
+   const trip = trips.find(t => t.id === activeTripId);
+   if (!trip) throw Error('Путешествие не найдено. Вернитесь на главную.');
+-  document.querySelector('.trip').textContent = trip.title + ' · ' + trip.startDate;
++  document.querySelector('.trip').textContent = trip.title + ' · ' + (trip.startDate || 'Даты не выбраны');
+   tripStartDate = trip.startDate;
+   selectedDate = trip.startDate;
+   await loadData();
+@@ -90,7 +90,7 @@
+   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
+   fillPointSelects();
+   render();
+-  window.loadCitySights(map, trip, async () => {await loadData();fillPointSelects();selectedDate=trip.startDate;render();});
++  window.loadCitySights(map, trip, async () => {await loadData();fillPointSelects();selectedDate=trip.startDate || dates()[0];render();});
+ }
+ 
+ function fillPointSelects() {
+--- a/public/city-sights.js
++++ b/public/city-sights.js
+@@ -53,7 +53,7 @@
+       if(complete)return;button.disabled=true;message.textContent='Добавляем…';
+       try {
+         if(!point) point=await request('/api/points',{name:sight.name,lat:sight.lat,lng:sight.lng,description:desc.textContent});
+-        const date=trip.startDate;const start=new Date(date+'T10:00:00');
++        const date=trip.startDate || `${trip.year}-${String(trip.month).padStart(2,'0')}-01`;const start=new Date(date+'T10:00:00');
+         await request('/api/events',{title:sight.name,type:'excursion',date,startTime:'10:00',pointId:point.id,description:desc.textContent,startAt:start.toISOString()});
+         complete=true;button.textContent='Добавлено';message.textContent='Точка и событие добавлены на первый день поездки, 10:00. Время можно изменить в таймлайне.';
+         await onAdded();
+--- a/server/index.js
++++ b/server/index.js
+@@ -240,17 +240,19 @@
+         ...trip,
+         pointsCount: db.points.filter((p) => (p.tripId || 'legacy') === trip.id).length,
+         eventsCount: db.events.filter((e) => (e.tripId || 'legacy') === trip.id).length,
+-        days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 1,
++        days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
+       })));
+     }
+     const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
+     if (req.method === 'PATCH' && tripMatch) {
+       const body = await parseBody(req);
+       const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+-      if (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
++      const clearing = body.startDate === null && body.endDate === null;
++      if (!clearing && (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate)) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
+       const db = readDb(), trip = db.trips.find(t => t.id === tripMatch[1]);
+       if(!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
+-      Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4))});
++      if(clearing) Object.assign(trip,{startDate:null,endDate:null});
++      else Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4))});
+       writeDb(db); return sendJson(res,200,trip);
+     }
+     if (req.method === 'POST' && pathname === '/api/trips') {

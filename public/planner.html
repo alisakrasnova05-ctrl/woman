@@ -43,21 +43,17 @@
             <button id="nextMonth" class="month-button" type="button" aria-label="Следующий месяц">›</button>
           </div>
         </div>
-        <div class="trip-date-controls">
-          <label>Начало поездки<input id="tripStartInput" type="date"></label>
-          <span class="date-separator">—</span>
-          <label>Конец поездки<input id="tripEndInput" type="date"></label>
-          <span class="date-help">Выберите даты поездки — подсветка останется при переключении дней</span>
-        </div>
+        <p class="range-instruction">Нажмите начало и конец поездки на календаре. Новый клик начинает изменение дат.</p>
         <div class="weekdays" aria-hidden="true"><span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span></div>
         <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь"></div>
-        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint">Выбранный день отмечен более тёмным цветом</span></div>
+        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Сбросить даты</button></div>
       </section>
 
       <section class="notes-section" aria-labelledby="notesTitle">
         <div class="notes-heading">
           <div><p class="eyebrow">ВАШ ПЛАН</p><h2 id="notesTitle">Заметки на день</h2><p id="selectedDateLabel" class="selected-date-label"></p></div>
         </div>
+        <section id="savedTripContent" aria-live="polite" aria-label="Сохранённые события и точки"></section>
         <div class="notes-card">
           <div class="notes-table-head"><span>НАЧАЛО</span><span>КОНЕЦ</span><span>СОБЫТИЕ И МЕСТО</span><span>БИЛЕТ</span><span></span></div>
           <div id="notesRows" class="notes-rows"></div>
