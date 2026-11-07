@@ -1,1 +1,40 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Traveler’s Glider — путешествия</title><link rel="stylesheet" href="/home.css"><link rel="stylesheet" href="/theme.css"></head><body><header><div class="brand">✈ <span>Traveler’s Glider</span></div><nav class="site-nav" aria-label="Навигация"><a href="#tripForm">Новая поездка</a><a href="#trips">Мои путешествия</a></nav></header><main><section class="create-panel"><div><p class="eyebrow">НОВОЕ ПУТЕШЕСТВИЕ</p><h1>Куда отправимся?</h1><p class="muted">Выберите месяц поездки и напишите место назначения.</p></div><form id="tripForm"><label><span>КОГДА</span><div class="selects"><select id="month"></select><select id="year"></select></div></label><label class="destination"><span>КУДА</span><input id="destination" placeholder="Казань, Санкт-Петербург, Байкал" autocomplete="off"></label><button class="add-btn">Добавить</button><div id="formError" class="error"></div></form></section><section class="history"><div class="history-head"><div><p class="eyebrow">МОИ ПУТЕШЕСТВИЯ</p></div><span id="count" class="count"></span></div><div id="trips" class="trip-list"></div></section></main><script src="/city-picker.js"></script><script src="/home.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TravelHub — путешествия</title>
+    <link rel="stylesheet" href="/home.css">
+    <link rel="stylesheet" href="/theme.css">
+  </head>
+  <body>
+    <header>
+      <div class="brand"><span class="brand-mark">✳</span><span>TravelHub</span></div>
+      <nav class="site-nav" aria-label="Навигация">
+        <a href="#tripForm">Новая поездка</a>
+        <a href="#trips">Мои путешествия</a>
+      </nav>
+    </header>
+    <main>
+      <section class="create-panel">
+        <div>
+          <p class="eyebrow">НОВОЕ ПУТЕШЕСТВИЕ</p>
+          <h1>Куда отправимся?</h1>
+          <p class="muted">Выберите месяц поездки и напишите место назначения.</p>
+        </div>
+        <form id="tripForm">
+          <label><span>КОГДА</span><div class="selects"><select id="month"></select><select id="year"></select></div></label>
+          <label class="destination"><span>КУДА</span><input id="destination" placeholder="Казань, Санкт-Петербург, Байкал" autocomplete="off"></label>
+          <button class="add-btn">Добавить</button>
+          <div id="formError" class="error"></div>
+        </form>
+      </section>
+      <section class="history">
+        <div class="history-head"><div><p class="eyebrow">МОИ ПУТЕШЕСТВИЯ</p></div><span id="count" class="count"></span></div>
+        <div id="trips" class="trip-list"></div>
+      </section>
+    </main>
+    <script src="/city-picker.js"></script>
+    <script src="/home.js"></script>
+  </body>
+</html>

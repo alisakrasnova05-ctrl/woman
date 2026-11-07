@@ -107,6 +107,26 @@
       "startDate": "2026-11-01",
       "endDate": "2026-11-04",
       "createdAt": "2026-11-07T14:18:42.691Z"
+    },
+    {
+      "id": "trip_1794060914640_p58y5",
+      "title": "оналтытмл",
+      "destination": "оналтытмл",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T14:15:14.640Z"
+    },
+    {
+      "id": "trip_1794061873720_znle2",
+      "title": "Байкал",
+      "destination": "Байкал",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T14:31:13.720Z"
     }
   ],
   "attractions": [

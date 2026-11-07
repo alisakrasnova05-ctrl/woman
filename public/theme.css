@@ -20,6 +20,8 @@
   --space: 16px;
   --space-lg: 24px;
   --space-xl: 40px;
+  --shadow-flat: 0 1px 2px #1f3b3d14;
+  --content-width: 1120px;
   --blue: var(--accent-strong);
   --bg: var(--cream);
 }
@@ -152,3 +154,82 @@ dialog::backdrop { background:#1f3b3db3; }
 .city-suggestions button { display:block; width:100%; padding:12px; text-align:left; border:0; border-bottom:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:13px; }
 .city-suggestions button:hover,.city-suggestions button:focus { background:var(--sand); }
 .city-status { display:block; font-size:11px; font-weight:400; letter-spacing:normal; margin-top:6px; }
+
+/* Shared vintage travel-poster finish for all application screens. */
+body { background:var(--cream); color:var(--ink); }
+button,a { transition:color .15s ease,background-color .15s ease,border-color .15s ease,transform .15s ease; }
+button:disabled { opacity:.58; cursor:not-allowed; }
+.site-nav a { padding:8px 0; }
+header .brand .brand-mark { display:inline-grid; width:31px; height:31px; place-items:center; margin-right:8px; border-radius:50%; background:var(--accent); color:var(--cream); font:16px var(--font-body); vertical-align:middle; }
+.create-panel { box-shadow:none; }
+.create-panel form { gap:14px; }
+.create-panel label>span { display:block; margin-bottom:2px; color:var(--sand); }
+.create-panel .selects select,.create-panel .destination input { box-shadow:none; }
+.create-panel :is(select,input):focus { outline:3px solid #e8a87c66; outline-offset:1px; border-color:var(--sand); }
+.trip-card { min-height:270px; }
+.cover { position:relative; overflow:hidden; }
+.cover::after { content:''; position:absolute; width:170px; height:170px; border:1px solid #1f3b3d38; border-radius:50%; right:-35px; top:18px; }
+.trip-info h3 { color:var(--teal); }
+.trip-arrow { font-size:28px; }
+.empty { border-style:solid; padding:42px 24px; }
+
+body:has(.sidebar) header { position:relative; z-index:1000; }
+body:has(.sidebar) .sidebar { background:var(--cream); }
+.section-actions .primary,.section-actions .secondary { border-radius:var(--pill); }
+.section-actions .secondary { color:var(--ink); }
+.event,.transfer-card { position:relative; }
+.event.selected,.transfer-card.selected { border:1px solid var(--accent-strong); border-left:4px solid var(--accent-strong); background:#f8e4d2; }
+.event-kind-icon { display:inline-grid; width:30px; height:30px; flex:0 0 30px; place-items:center; margin-right:7px; border:1px solid #d9b697; border-radius:50%; background:#f2d4b8; color:var(--teal); font-size:15px; line-height:1; }
+.event-time { display:flex; align-items:center; gap:0; color:var(--accent-strong); }
+.event-time::before { content:none; }
+.event-time-copy { min-width:0; }
+.event-title { color:var(--teal); }
+.transfer-route { color:var(--ink); }
+.event-meta a,.event a,.route-link { color:var(--accent-strong); }
+.icon { border:1px solid transparent; }
+.icon:hover { border-color:var(--line); }
+.attraction-card { transition:border-color .15s ease,transform .15s ease; }
+.attraction-card:hover { transform:translateY(-1px); }
+.leaflet-overlay-pane path.leaflet-interactive { stroke:var(--accent-strong) !important; }
+.leaflet-marker-icon:not(.user-location) { filter:sepia(1) saturate(4) hue-rotate(325deg); }
+.leaflet-marker-icon.marker-selected { filter:sepia(1) saturate(7) hue-rotate(325deg) drop-shadow(0 1px 2px #1f3b3d55); }
+.leaflet-popup-content-wrapper { box-shadow:var(--shadow-flat); }
+.map-wrap { border-color:var(--teal); }
+.user-location { background:var(--accent-strong)!important; box-shadow:0 0 0 6px #a63d2b2b,0 0 0 11px #a63d2b17!important; animation-name:travelhubLocationPulse; }
+@keyframes travelhubLocationPulse { 50% { box-shadow:0 0 0 10px #a63d2b22,0 0 0 16px #a63d2b0d; } }
+.place-dialog form { border-top:1px solid var(--line); margin-top:20px; padding-top:18px; }
+.place-dialog form h3 { color:var(--teal); }
+
+body:has(.page-shell) { background:var(--cream); }
+.page-shell { color:var(--ink); }
+.page-shell .eyebrow { color:var(--accent-strong); }
+.page-shell .intro h1,.page-shell .calendar-heading h2,.page-shell .notes-heading h2 { color:var(--teal); font-family:var(--font-heading); font-weight:400; }
+.page-shell .calendar-card,.page-shell .notes-card,.page-shell .trip-length { background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); box-shadow:none; }
+.page-shell .trip-length { color:var(--ink); }
+.page-shell .length-icon { background:#f2d4b8; color:var(--accent-strong); }
+.page-shell .calendar-day { color:var(--ink); }
+.page-shell .calendar-day.outside { color:#8b8c80; }
+.page-shell .calendar-day.in-trip { background:#dbe8df; color:#31584c; }
+.page-shell .calendar-day.range-start,.page-shell .calendar-day.range-end { background:var(--sage); color:#183b36; }
+.page-shell .calendar-day.selected-day { background:var(--accent-strong); color:var(--cream); box-shadow:none; }
+.page-shell .calendar-day:hover { background:#f1d4ba; }
+.page-shell .calendar-card input,.page-shell .calendar-card select,.page-shell .note-row input { background:var(--paper); color:var(--ink); border-color:var(--line); }
+.page-shell .notes-table-head { background:#efe3d1; color:#475752; border-color:var(--line); }
+.page-shell .note-row { border-color:#e6d8c6; }
+.page-shell .note-row input:focus { border-color:var(--accent-strong); background:#fffdf8; }
+.page-shell .add-button { background:var(--accent-strong); color:var(--cream); border:1px solid var(--accent-strong); border-radius:var(--pill); box-shadow:none; }
+.page-shell .add-button:hover { background:var(--accent); border-color:var(--accent); color:#fffaf2; }
+.page-shell .map-action,.page-shell .map-link { background:transparent; color:var(--accent-strong); border-color:var(--accent-strong); border-radius:var(--pill); }
+.page-shell .map-action:hover,.page-shell .map-link:hover { background:#f2d4b8; transform:none; }
+.page-shell .month-button,.page-shell .today-button,.page-shell .month-picker { background:var(--paper); color:var(--ink); border-color:var(--line); border-radius:var(--pill); }
+.page-shell .month-button:hover,.page-shell .today-button:hover,.page-shell .month-picker:focus { border-color:var(--accent-strong); color:var(--accent-strong); }
+.page-shell .trip-date-controls { background:#efe3d1; border-color:var(--line); }
+.page-shell .trip-date-controls input { background:var(--paper); }
+.page-shell .ticket-pick,.page-shell .ticket-download,.page-shell .ticket-remove { background:var(--paper); color:var(--accent-strong); border-color:var(--line); }
+.page-shell .ticket-pick:hover,.page-shell .ticket-download:hover { border-color:var(--accent-strong); background:#f2d4b8; }
+.page-shell .notes-foot,.page-shell .calendar-footer,.page-shell .page-footer { border-color:var(--line); color:var(--muted); }
+
+@media(max-width:800px) {
+  body:has(.sidebar) main { grid-template-columns:minmax(0,1fr); }
+  body:has(.sidebar) .map-wrap { order:-1; }
+}

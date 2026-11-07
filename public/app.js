@@ -240,7 +240,7 @@ function transferCard(transfer) {
         <button class="icon" type="button" data-edit-transfer="${esc(transfer.id)}">✎</button>
         <button class="icon" type="button" data-delete-transfer="${esc(transfer.id)}">×</button>
       </div>
-      <div class="event-time">${meta.icon} Дорога · ${esc(meta.label)}</div>
+      <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${meta.icon}</span><span class="event-time-copy">Дорога · ${esc(meta.label)}</span></div>
       <div class="transfer-route">
         <span>${from ? esc(from.name) : 'Точка удалена'}</span>
         <span class="transfer-arrow">→</span>
@@ -263,6 +263,8 @@ function drawMap(items) {
     const marker = L.marker([point.lat, point.lng])
       .addTo(map)
       .bindPopup(pointPopup(point));
+    const selectedPoint = events.some((event) => selectedKey === itemKey('event', event.id) && event.pointId === point.id);
+    marker.getElement()?.classList.toggle('marker-selected', selectedPoint);
     markers[key] = marker;
   });
 
@@ -598,7 +600,7 @@ function featureCard(event, continuation = false) {
         <button class="icon" type="button" data-edit-event="${esc(event.id)}">✎</button>
         <button class="icon" type="button" data-delete-event="${esc(event.id)}">×</button>
       </div>
-      <div class="event-time">${eventIcons[event.type] || '✨'} ${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</div>
+      <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${eventIcons[event.type] || '✨'}</span><span class="event-time-copy">${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</span></div>
       <div class="event-title">${esc(event.title)}</div>
       <div class="event-meta">${point ? `📍 ${esc(point.name)}` : 'Без геоточки'}</div>
       ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
