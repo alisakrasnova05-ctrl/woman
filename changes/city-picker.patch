@@ -1,0 +1,138 @@
+--- a/public/home.js
++++ b/public/home.js
+@@ -1 +1 @@
+-const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate} — ${t.endDate}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>c.onclick=()=>location.href='/trip?trip='+c.dataset.id)}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href='/planner?'+new URLSearchParams({trip:t.id,month:t.month,year:t.year})}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
++const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate} — ${t.endDate}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>c.onclick=()=>location.href='/trip?trip='+c.dataset.id)}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href='/planner?'+new URLSearchParams({trip:t.id,month:t.month,year:t.year})}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
+--- a/public/home.html
++++ b/public/home.html
+@@ -1 +1 @@
+-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Traveler’s Glider — путешествия</title><link rel="stylesheet" href="/home.css"><link rel="stylesheet" href="/theme.css"></head><body><header><div class="brand">✈ <span>Traveler’s Glider</span></div><nav class="site-nav" aria-label="Навигация"><a href="#tripForm">Новая поездка</a><a href="#trips">Мои путешествия</a></nav></header><main><section class="create-panel"><div><p class="eyebrow">НОВОЕ ПУТЕШЕСТВИЕ</p><h1>Куда отправимся?</h1><p class="muted">Выберите месяц поездки и напишите место назначения.</p></div><form id="tripForm"><label><span>КОГДА</span><div class="selects"><select id="month"></select><select id="year"></select></div></label><label class="destination"><span>КУДА</span><input id="destination" placeholder="Казань, Санкт-Петербург, Байкал" autocomplete="off"></label><button class="add-btn">Добавить</button><div id="formError" class="error"></div></form></section><section class="history"><div class="history-head"><div><p class="eyebrow">МОИ ПУТЕШЕСТВИЯ</p></div><span id="count" class="count"></span></div><div id="trips" class="trip-list"></div></section></main><script src="/home.js"></script></body></html>
++<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Traveler’s Glider — путешествия</title><link rel="stylesheet" href="/home.css"><link rel="stylesheet" href="/theme.css"></head><body><header><div class="brand">✈ <span>Traveler’s Glider</span></div><nav class="site-nav" aria-label="Навигация"><a href="#tripForm">Новая поездка</a><a href="#trips">Мои путешествия</a></nav></header><main><section class="create-panel"><div><p class="eyebrow">НОВОЕ ПУТЕШЕСТВИЕ</p><h1>Куда отправимся?</h1><p class="muted">Выберите месяц поездки и напишите место назначения.</p></div><form id="tripForm"><label><span>КОГДА</span><div class="selects"><select id="month"></select><select id="year"></select></div></label><label class="destination"><span>КУДА</span><input id="destination" placeholder="Казань, Санкт-Петербург, Байкал" autocomplete="off"></label><button class="add-btn">Добавить</button><div id="formError" class="error"></div></form></section><section class="history"><div class="history-head"><div><p class="eyebrow">МОИ ПУТЕШЕСТВИЯ</p></div><span id="count" class="count"></span></div><div id="trips" class="trip-list"></div></section></main><script src="/city-picker.js"></script><script src="/home.js"></script></body></html>
+--- a/public/app.js
++++ b/public/app.js
+@@ -76,10 +76,16 @@
+   tripStartDate = trip.startDate;
+   selectedDate = trip.startDate;
+   await loadData();
++  if (trip.city && Number.isFinite(trip.city.latitude) && Number.isFinite(trip.city.longitude)) {
++    const city = trip.city;
++    map.setView([city.latitude, city.longitude], 12);
++    L.marker([city.latitude, city.longitude], {title:city.name}).addTo(map).bindPopup(esc(city.name));
++    if (!points.length) document.querySelector('.map-hint').textContent = 'Добавьте первую точку маршрута';
++  }
+   attractions=await api('/api/attractions');
+   $('#attractionId').innerHTML='<option value="">Без экскурсионной точки</option>'+attractions.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+   renderAttractions();
+-  attractions.forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
++  (trip.city ? [] : attractions).forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
+   const availableDates = dates();
+   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
+   fillPointSelects();
+--- a/public/theme.css
++++ b/public/theme.css
+@@ -147,3 +147,8 @@
+ 
+ /* Keep map credits as text links without the Leaflet flag icon. */
+ .leaflet-attribution-flag { display: none !important; }
++.destination { position:relative; min-width:0; }
++.city-suggestions { position:absolute; top:100%; left:0; right:0; z-index:1000; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius-sm); max-height:270px; overflow-y:auto; margin-top:4px; }
++.city-suggestions button { display:block; width:100%; padding:12px; text-align:left; border:0; border-bottom:1px solid var(--line); background:var(--paper); color:var(--ink); font-size:13px; }
++.city-suggestions button:hover,.city-suggestions button:focus { background:var(--sand); }
++.city-status { display:block; font-size:11px; font-weight:400; letter-spacing:normal; margin-top:6px; }
+--- a/server/index.js
++++ b/server/index.js
+@@ -211,6 +211,16 @@
+ 
+ function withUtc(b){const out={...b}; out.startAt=new Date(`${out.date}T${out.startTime}`).toISOString(); if(out.endTime){const endDate=out.endDate||out.date; out.endAt=new Date(`${endDate}T${out.endTime}`).toISOString();}else delete out.endAt; return out}
+ 
++async function geocoding(endpoint) {
++  const response = await fetch('https://geocoding-api.open-meteo.com/v1/' + endpoint, {signal:AbortSignal.timeout(6000)});
++  if (!response.ok) throw Error('Сервис поиска городов недоступен');
++  return response.json();
++}
++function cityRecord(city) {
++  return {id:city.id,name:city.name,country:city.country,admin1:city.admin1,latitude:city.latitude,longitude:city.longitude,timezone:city.timezone};
++}
++function isCity(city) { return /^PPL/.test(city.feature_code || ''); }
++
+ const server = http.createServer(async (req, res) => {
+   const parsed = url.parse(req.url, true);
+   const pathname = parsed.pathname;
+@@ -218,6 +228,12 @@
+   const pointMatch = pathname.match(/^\/api\/points\/([^/]+)$/);
+ 
+   try {
++    if (req.method === 'GET' && pathname === '/api/cities') {
++      const name = String(parsed.query.name || '').trim();
++      if(name.length < 2) return sendJson(res,200,[]);
++      const result = await geocoding('search?' + new URLSearchParams({name,count:'20',language:'ru',format:'json'}));
++      return sendJson(res,200,(result.results || []).filter(isCity).slice(0,8).map(cityRecord));
++    }
+     if (req.method === 'GET' && pathname === '/api/trips') {
+       const db = readDb();
+       return sendJson(res, 200, db.trips.map((trip) => ({
+@@ -232,9 +248,15 @@
+       if (!body.destination?.trim()) return sendJson(res, 400, { errors: ['Укажите место назначения'] });
+       const currentYear = new Date().getFullYear();
+       if (!Number.isInteger(Number(body.month)) || Number(body.month)<1 || Number(body.month)>12 || !Number.isInteger(Number(body.year)) || Number(body.year)<currentYear || Number(body.year)>currentYear+5) return sendJson(res,400,{errors:['Выберите доступные месяц и год']});
++      let city = null;
++      if (body.city?.id) {
++        const found = await geocoding('get?' + new URLSearchParams({id:body.city.id,language:'ru'}));
++        if(!isCity(found)) return sendJson(res,400,{errors:['Выберите город из списка']});
++        city = cityRecord(found);
++      } else if (body.cityFallback !== true) return sendJson(res,400,{errors:['Выберите город из списка']});
+       const startDate = `${body.year}-${String(Number(body.month)).padStart(2, '0')}-01`;
+       const end = new Date(`${startDate}T00:00:00`); end.setDate(end.getDate() + 3);
+-      const item = { id: id('trip'), title: body.destination.trim(), destination: body.destination.trim(), month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
++      const item = { id: id('trip'), title: city?.name || body.destination.trim(), destination: city?.name || body.destination.trim(), city, month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
+       const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
+     }
+     if(req.method==='GET'&&pathname==='/api/attractions')return sendJson(res,200,readDb().attractions||[]);const ar=pathname.match(/^\/api\/attractions\/([^/]+)\/reviews$/);if(ar&&req.method==='POST'){const b=await parseBody(req);if(!b.name?.trim()||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5||!b.text?.trim())return sendJson(res,400,{errors:['Имя, оценка от 1 до 5 и текст обязательны']});const d=readDb(),a=(d.attractions||[]).find(x=>x.id===ar[1]);if(!a)return sendJson(res,404,{error:'Точка не найдена'});const review={id:'r_'+Date.now(),name:b.name.trim(),rating:Number(b.rating),text:b.text.trim()};a.reviews=[...(a.reviews||[]),review];writeDb(d);return sendJson(res,201,review)}
+--- /dev/null
++++ b/public/city-picker.js
+@@ -0,0 +1,45 @@
++// The search response already includes coordinates; selecting does not geocode twice.
++(() => {
++  const input = document.querySelector('#destination');
++  const menu = document.createElement('div');
++  menu.className = 'city-suggestions'; menu.id = 'citySuggestions'; menu.hidden = true;
++  menu.setAttribute('role', 'listbox');
++  input.after(menu);
++  const status = document.createElement('small');
++  status.className = 'city-status'; status.setAttribute('aria-live', 'polite'); menu.after(status);
++  input.setAttribute('role', 'combobox'); input.setAttribute('aria-autocomplete', 'list');
++  input.setAttribute('aria-controls', menu.id); input.setAttribute('aria-expanded', 'false');
++  let selected = null, fallback = false, timer, controller, version = 0;
++  function close() { menu.hidden = true; input.setAttribute('aria-expanded', 'false'); }
++  window.cityPicker = { getSelection() { return selected; }, allowFallback() { return fallback; } };
++  input.addEventListener('input', () => {
++    selected = null; fallback = false; version++; clearTimeout(timer); controller?.abort(); close();
++    const text = input.value.trim(), current = version;
++    if (text.length < 2) { status.textContent = 'Введите минимум две буквы города.'; return; }
++    status.textContent = 'Ищем город…';
++    timer = setTimeout(async () => {
++      controller = new AbortController();
++      const timeout = setTimeout(() => controller.abort(), 8000);
++      try {
++        const response = await fetch('/api/cities?' + new URLSearchParams({name:text}), {signal:controller.signal});
++        if (!response.ok) throw Error('search');
++        const cities = await response.json();
++        if (current !== version) return;
++        menu.replaceChildren();
++        cities.forEach(city => {
++          const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role','option');
++          button.textContent = [city.name, city.admin1, city.country].filter(Boolean).join(' · ');
++          button.onclick = () => { selected = city; input.value = city.name; close(); status.textContent = [city.admin1,city.country].filter(Boolean).join(' · '); input.focus(); };
++          menu.append(button);
++        });
++        status.textContent = cities.length ? 'Выберите город из списка.' : 'Город не найден. Попробуйте другое название.';
++        menu.hidden = !cities.length; input.setAttribute('aria-expanded', String(!!cities.length));
++      } catch {
++        if (current !== version) return;
++        fallback = true; status.textContent = 'Поиск недоступен. Можно создать поездку с названием без координат.';
++      } finally { clearTimeout(timeout); }
++    }, 300);
++  });
++  input.addEventListener('keydown', e => { if(e.key==='ArrowDown'&&!menu.hidden){e.preventDefault();menu.querySelector('button')?.focus()} if(e.key==='Escape')close() });
++  document.addEventListener('click', e => { if(!input.parentElement.contains(e.target))close() });
++})();

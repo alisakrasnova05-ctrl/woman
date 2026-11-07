@@ -58,6 +58,55 @@
       "startDate": "2026-11-01",
       "endDate": "2026-11-04",
       "createdAt": "2026-11-07T13:48:55.136Z"
+    },
+    {
+      "id": "trip_1794060343786_l113c",
+      "title": "пыавп",
+      "destination": "пыавп",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T14:05:43.787Z"
+    },
+    {
+      "id": "trip_1794060353046_rf1wg",
+      "title": "пыавп",
+      "destination": "пыавп",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T14:05:53.046Z"
+    },
+    {
+      "id": "trip_1794060357796_p83z0",
+      "title": "мсчмсчм",
+      "destination": "мсчмсчм",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T14:05:57.796Z"
+    },
+    {
+      "id": "trip_1794061122691_9fqqo",
+      "title": "Кейптаун",
+      "destination": "Кейптаун",
+      "city": {
+        "id": 3369157,
+        "name": "Кейптаун",
+        "country": "ЮАР",
+        "admin1": "Западно-Капская провинция",
+        "latitude": -33.92584,
+        "longitude": 18.42322,
+        "timezone": "Africa/Johannesburg"
+      },
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-01",
+      "endDate": "2026-11-04",
+      "createdAt": "2026-11-07T14:18:42.691Z"
     }
   ],
   "attractions": [

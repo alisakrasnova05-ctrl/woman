@@ -211,6 +211,16 @@ function findItem(collection, itemId) {
 
 function withUtc(b){const out={...b}; out.startAt=new Date(`${out.date}T${out.startTime}`).toISOString(); if(out.endTime){const endDate=out.endDate||out.date; out.endAt=new Date(`${endDate}T${out.endTime}`).toISOString();}else delete out.endAt; return out}
 
+async function geocoding(endpoint) {
+  const response = await fetch('https://geocoding-api.open-meteo.com/v1/' + endpoint, {signal:AbortSignal.timeout(6000)});
+  if (!response.ok) throw Error('Сервис поиска городов недоступен');
+  return response.json();
+}
+function cityRecord(city) {
+  return {id:city.id,name:city.name,country:city.country,admin1:city.admin1,latitude:city.latitude,longitude:city.longitude,timezone:city.timezone};
+}
+function isCity(city) { return /^PPL/.test(city.feature_code || ''); }
+
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const pathname = parsed.pathname;
@@ -218,6 +228,12 @@ const server = http.createServer(async (req, res) => {
   const pointMatch = pathname.match(/^\/api\/points\/([^/]+)$/);
 
   try {
+    if (req.method === 'GET' && pathname === '/api/cities') {
+      const name = String(parsed.query.name || '').trim();
+      if(name.length < 2) return sendJson(res,200,[]);
+      const result = await geocoding('search?' + new URLSearchParams({name,count:'20',language:'ru',format:'json'}));
+      return sendJson(res,200,(result.results || []).filter(isCity).slice(0,8).map(cityRecord));
+    }
     if (req.method === 'GET' && pathname === '/api/trips') {
       const db = readDb();
       return sendJson(res, 200, db.trips.map((trip) => ({
@@ -232,9 +248,15 @@ const server = http.createServer(async (req, res) => {
       if (!body.destination?.trim()) return sendJson(res, 400, { errors: ['Укажите место назначения'] });
       const currentYear = new Date().getFullYear();
       if (!Number.isInteger(Number(body.month)) || Number(body.month)<1 || Number(body.month)>12 || !Number.isInteger(Number(body.year)) || Number(body.year)<currentYear || Number(body.year)>currentYear+5) return sendJson(res,400,{errors:['Выберите доступные месяц и год']});
+      let city = null;
+      if (body.city?.id) {
+        const found = await geocoding('get?' + new URLSearchParams({id:body.city.id,language:'ru'}));
+        if(!isCity(found)) return sendJson(res,400,{errors:['Выберите город из списка']});
+        city = cityRecord(found);
+      } else if (body.cityFallback !== true) return sendJson(res,400,{errors:['Выберите город из списка']});
       const startDate = `${body.year}-${String(Number(body.month)).padStart(2, '0')}-01`;
       const end = new Date(`${startDate}T00:00:00`); end.setDate(end.getDate() + 3);
-      const item = { id: id('trip'), title: body.destination.trim(), destination: body.destination.trim(), month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
+      const item = { id: id('trip'), title: city?.name || body.destination.trim(), destination: city?.name || body.destination.trim(), city, month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
       const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
     }
     if(req.method==='GET'&&pathname==='/api/attractions')return sendJson(res,200,readDb().attractions||[]);const ar=pathname.match(/^\/api\/attractions\/([^/]+)\/reviews$/);if(ar&&req.method==='POST'){const b=await parseBody(req);if(!b.name?.trim()||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5||!b.text?.trim())return sendJson(res,400,{errors:['Имя, оценка от 1 до 5 и текст обязательны']});const d=readDb(),a=(d.attractions||[]).find(x=>x.id===ar[1]);if(!a)return sendJson(res,404,{error:'Точка не найдена'});const review={id:'r_'+Date.now(),name:b.name.trim(),rating:Number(b.rating),text:b.text.trim()};a.reviews=[...(a.reviews||[]),review];writeDb(d);return sendJson(res,201,review)}

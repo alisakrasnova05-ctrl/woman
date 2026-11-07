@@ -76,10 +76,16 @@ async function init() {
   tripStartDate = trip.startDate;
   selectedDate = trip.startDate;
   await loadData();
+  if (trip.city && Number.isFinite(trip.city.latitude) && Number.isFinite(trip.city.longitude)) {
+    const city = trip.city;
+    map.setView([city.latitude, city.longitude], 12);
+    L.marker([city.latitude, city.longitude], {title:city.name}).addTo(map).bindPopup(esc(city.name));
+    if (!points.length) document.querySelector('.map-hint').textContent = 'Добавьте первую точку маршрута';
+  }
   attractions=await api('/api/attractions');
   $('#attractionId').innerHTML='<option value="">Без экскурсионной точки</option>'+attractions.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
   renderAttractions();
-  attractions.forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
+  (trip.city ? [] : attractions).forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
   const availableDates = dates();
   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
   fillPointSelects();
