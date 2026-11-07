@@ -165,9 +165,13 @@ button:disabled { opacity:.58; cursor:not-allowed; }
 header .brand .brand-mark { display:inline-grid; width:31px; height:31px; place-items:center; margin-right:8px; border-radius:50%; background:var(--accent); color:var(--cream); font:16px var(--font-body); vertical-align:middle; }
 .create-panel { box-shadow:none; }
 .create-panel form { gap:14px; }
+.create-panel form { row-gap:22px; }
 .create-panel label>span { display:block; margin-bottom:2px; color:var(--sand); }
 .create-panel .selects select,.create-panel .destination input { box-shadow:none; }
 .create-panel :is(select,input):focus { outline:3px solid #e8a87c66; outline-offset:1px; border-color:var(--sand); }
+.destination-field { position:relative; }
+.destination-field .city-status { position:absolute; top:calc(100% + 5px); left:4px; right:4px; z-index:2; margin:0; color:#f5ebdc; line-height:1.3; }
+.destination-field:has(.city-suggestions:not([hidden])) .city-status { display:none; }
 .trip-card { min-height:270px; }
 .cover { position:relative; overflow:hidden; }
 .cover::after { content:''; position:absolute; width:170px; height:170px; border:1px solid #1f3b3d38; border-radius:50%; right:-35px; top:18px; }
@@ -235,3 +239,8 @@ body:has(.page-shell) { background:var(--cream); }
   body:has(.sidebar) main { grid-template-columns:minmax(0,1fr); }
   body:has(.sidebar) .map-wrap { order:-1; }
 }
+.section-actions{gap:12px}.subhead{margin:24px 0 12px}.attractions{gap:14px;padding-bottom:10px}.attraction-card{min-width:158px;padding:10px}
+.trip-delete { position:absolute; top:14px; left:14px; z-index:1; display:grid; width:40px; height:40px; place-items:center; padding:9px; border:1px solid var(--line); border-radius:var(--pill); background:var(--paper); color:var(--accent-strong); }
+.trip-delete svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.trip-delete:hover { border-color:var(--accent-strong); background:var(--accent-strong); color:var(--cream); }
+.trip-delete:disabled { opacity:.6; cursor:wait; }

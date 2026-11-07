@@ -244,6 +244,19 @@ const server = http.createServer(async (req, res) => {
       })));
     }
     const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
+    if (req.method === 'DELETE' && tripMatch) {
+      const db = readDb();
+      const tripId = decodeURIComponent(tripMatch[1]);
+      const tripIndex = db.trips.findIndex((trip) => trip.id === tripId);
+      if (tripIndex < 0) return sendJson(res, 404, { error: 'Путешествие не найдено' });
+
+      db.trips.splice(tripIndex, 1);
+      db.points = db.points.filter((item) => (item.tripId || 'legacy') !== tripId);
+      db.events = db.events.filter((item) => (item.tripId || 'legacy') !== tripId);
+      db.transfers = db.transfers.filter((item) => (item.tripId || 'legacy') !== tripId);
+      writeDb(db);
+      return sendJson(res, 200, { id: tripId, deleted: true });
+    }
     if (req.method === 'PATCH' && tripMatch) {
       const body = await parseBody(req);
       const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;

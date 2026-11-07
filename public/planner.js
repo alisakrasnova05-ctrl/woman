@@ -281,7 +281,6 @@
   $('#monthSelect').addEventListener('change', changeCalendarMonth);
   $('#yearSelect').addEventListener('change', changeCalendarMonth);
 
-  $('#todayBtn').addEventListener('click', () => { view = new Date(today.getFullYear(), today.getMonth(), 1); chooseDay(dateKey(today)); });
   $('#addEventBtn').addEventListener('click', () => {
     notes[selected] = [...(notes[selected] || []), { startTime: '', endTime: '', title: '' }];
     persistNotes();
