@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TravelHub</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header>
+      <div class="brand">✈ <span>TravelHub</span></div>
+      <div class="trip">Москва · 12–14 июня 2025</div>
+    <div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
+
+    <main>
+      <section class="sidebar">
+        <div class="section-head">
+          <h2>Таймлайн поездки</h2>
+          <div class="section-actions">
+            <button id="addBtn" class="primary" type="button">＋ Событие</button>
+            <button id="addTransferBtn" class="secondary" type="button">↔ Перемещение</button>
+            <button id="addPointBtn" class="secondary" type="button">＋ Точка</button>
+          </div>
+        </div>
+        <h3 class="subhead">Экскурсионные точки Казани</h3><div id="attractions" class="attractions"></div>
+        <div id="days" class="days"></div>
+        <div id="timeline"></div>
+      </section>
+
+      <section class="map-wrap">
+        <div id="map"></div>
+        <div class="map-hint">Нажмите на точку или перемещение, чтобы открыть подробности</div>
+      </section>
+    </main>
+
+    <dialog id="pointDialog">
+      <form method="dialog" id="pointForm">
+        <div class="dialog-head">
+          <h2 id="pointFormTitle">Новая точка</h2>
+          <button type="button" id="closePointBtn">×</button>
+        </div>
+        <input type="hidden" id="pointEditId">
+        <label>Название<input id="pointName" required placeholder="Например, Аэропорт Казани"></label>
+        <div class="row">
+          <label>Широта<input type="number" id="pointLat" min="-90" max="90" step="any" required></label>
+          <label>Долгота<input type="number" id="pointLng" min="-180" max="180" step="any" required></label>
+        </div>
+        <button type="button" id="pickPointBtn" class="map-pick">Выбрать координаты на карте</button>
+        <div id="pointPickHint" class="pick-hint">Можно указать координаты вручную или нажать на карту.</div>
+        <label>Описание<textarea id="pointDescription" rows="3"></textarea></label>
+        <div id="pointFormError" class="error"></div>
+        <div class="actions">
+          <button type="button" id="cancelPointBtn" class="secondary">Отмена</button>
+          <button class="primary">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="eventDialog">
+      <form method="dialog" id="eventForm">
+        <div class="dialog-head">
+          <h2 id="formTitle">Новое событие</h2>
+          <button type="button" id="closeBtn">×</button>
+        </div>
+        <input type="hidden" id="eventId">
+        <label>Название<input id="title" required placeholder="Например, Ужин в ресторане"></label>
+        <label>Тип
+          <select id="type">
+            <option value="excursion">Экскурсия / достопримечательность</option>
+            <option value="stay">Проживание</option>
+            <option value="restaurant">Ресторан</option>
+            <option value="meeting">Встреча</option>
+            <option value="other">Другое</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Дата<input type="date" id="date" required></label>
+          <label>Начало<input type="time" id="startTime" required></label>
+          <label>Окончание<input type="time" id="endTime"></label>
+        </div>
+        <label>Дата окончания (если после полуночи)<input type="date" id="endDate"></label>
+        <label>Точка маршрута
+          <select id="pointId"><option value="">Без геоточки</option></select>
+        </label>
+        <label>Экскурсионная точка (необязательно)<select id="attractionId"><option value="">Без экскурсионной точки</option></select></label>
+        <label>Описание<textarea id="description" rows="3"></textarea></label>
+        <label>Ссылка на билет / бронь<input type="url" id="bookingUrl" placeholder="https://..."></label>
+        <label>Материалы (ссылки через запятую)<input id="materials" placeholder="https://...jpg, https://...jpg"></label>
+        <div id="formError" class="error"></div>
+        <div class="actions">
+          <button type="button" id="cancelBtn" class="secondary">Отмена</button>
+          <button class="primary">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="transferDialog">
+      <form method="dialog" id="transferForm">
+        <div class="dialog-head">
+          <h2 id="transferFormTitle">Новое перемещение</h2>
+          <button type="button" id="closeTransferBtn">×</button>
+        </div>
+        <input type="hidden" id="transferId">
+        <div class="row">
+          <label>Откуда
+            <select id="transferFromPointId" required></select>
+          </label>
+          <label>Куда
+            <select id="transferToPointId" required></select>
+          </label>
+        </div>
+        <label>Способ передвижения
+          <select id="transferMode" required>
+            <option value="walking">Пешком</option>
+            <option value="car">Автомобиль</option>
+            <option value="train">Поезд</option>
+            <option value="plane">Самолёт</option>
+            <option value="other">Другой транспорт</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Дата отправления<input type="date" id="transferDate" required></label>
+          <label>Время отправления<input type="time" id="transferStartTime" required></label>
+        </div>
+        <div class="row">
+          <label>Дата прибытия<input type="date" id="transferEndDate" required></label>
+          <label>Время прибытия<input type="time" id="transferEndTime" required></label>
+        </div>
+        <label>Описание<textarea id="transferDescription" rows="3" placeholder="Например, трансфер до гостиницы"></textarea></label>
+        <div id="transferFormError" class="error"></div>
+        <div class="actions">
+          <button type="button" id="cancelTransferBtn" class="secondary">Отмена</button>
+          <button class="primary">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="attractionDialog">
+        <div class="place-dialog"><button class="place-close" id="placeClose">×</button>
+            <div id="placeContent"></div>
+            <form id="reviewForm">
+                <h3>Оставить отзыв</h3>
+                <div class="review-row"><input id="reviewName" placeholder="Ваше имя" required><select
+                        id="reviewRating">
+                        <option value="5">★★★★★</option>
+                        <option value="4">★★★★☆</option>
+                        <option value="3">★★★☆☆</option>
+                        <option value="2">★★☆☆☆</option>
+                        <option value="1">★☆☆☆☆</option>
+                    </select></div><textarea id="reviewText" placeholder="Ваш отзыв" required></textarea><button
+                    class="primary">Опубликовать</button>
+                <div id="reviewError" class="error"></div>
+            </form>
+        </div>
+    </dialog>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -168,6 +168,14 @@
       "lng": 49.122233,
       "description": "",
       "tripId": "legacy"
+    },
+    {
+      "id": "p_1794045865320_7gn1k",
+      "name": "Аэропорт Казани",
+      "lat": 55.772698,
+      "lng": 37.626053,
+      "description": "",
+      "tripId": "legacy"
     }
   ],
   "events": [

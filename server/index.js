@@ -296,7 +296,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET') {
-      const requestedPath = pathname === '/' ? '/home.html' : (pathname === '/trip' ? '/index.html' : pathname);
+      const requestedPath = pathname === '/'
+        ? '/home.html'
+        : pathname === '/trip'
+          ? '/index.html'
+          : pathname === '/planner'
+            ? '/planner.html'
+            : pathname;
       const filePath = path.resolve(PUBLIC, `.${requestedPath}`);
       if (filePath.startsWith(`${PUBLIC}${path.sep}`) && fs.existsSync(filePath)) {
         const extension = path.extname(filePath);

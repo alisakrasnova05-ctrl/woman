@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f8fc">
+    <title>План поездки — TravelHub</title>
+    <link rel="stylesheet" href="/planner.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/planner.html" aria-label="TravelHub, план поездки"><span class="brand-mark">✳</span> TravelHub</a>
+      <a class="map-link" href="/trip" aria-label="Перейти к карте">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
+        <span>Карта маршрута</span><span class="link-arrow">↗</span>
+      </a>
+    </header>
+
+    <main class="page-shell">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">ВАШ МАРШРУТ</p>
+          <h1>Спланируйте поездку</h1>
+          <p class="intro-copy">Отметьте дни путешествия и добавьте планы на каждый день.</p>
+        </div>
+        <div class="trip-length" aria-live="polite"><span class="length-icon">✦</span><span><strong id="tripLength">Даты не выбраны</strong><small>длительность поездки</small></span></div>
+      </section>
+
+      <section class="calendar-card" aria-labelledby="calendarTitle">
+        <div class="calendar-heading">
+          <div><p class="eyebrow">КАЛЕНДАРЬ ПОЕЗДКИ</p><h2 id="calendarTitle"></h2></div>
+          <div class="month-controls">
+            <button id="prevMonth" class="month-button" type="button" aria-label="Предыдущий месяц">‹</button>
+            <label class="month-picker-wrap" aria-label="Выбрать месяц и год">
+              <select id="monthSelect" class="month-picker" aria-label="Месяц">
+                <option value="0">Январь</option><option value="1">Февраль</option><option value="2">Март</option><option value="3">Апрель</option><option value="4">Май</option><option value="5">Июнь</option><option value="6">Июль</option><option value="7">Август</option><option value="8">Сентябрь</option><option value="9">Октябрь</option><option value="10">Ноябрь</option><option value="11">Декабрь</option>
+              </select>
+              <select id="yearSelect" class="month-picker year-picker" aria-label="Год"></select>
+            </label>
+            <button id="todayBtn" class="today-button" type="button">Сегодня</button>
+            <button id="nextMonth" class="month-button" type="button" aria-label="Следующий месяц">›</button>
+          </div>
+        </div>
+        <div class="trip-date-controls">
+          <label>Начало поездки<input id="tripStartInput" type="date"></label>
+          <span class="date-separator">—</span>
+          <label>Конец поездки<input id="tripEndInput" type="date"></label>
+          <span class="date-help">Выберите даты поездки — подсветка останется при переключении дней</span>
+        </div>
+        <div class="weekdays" aria-hidden="true"><span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span></div>
+        <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь"></div>
+        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint">Выбранный день отмечен более тёмным цветом</span></div>
+      </section>
+
+      <section class="notes-section" aria-labelledby="notesTitle">
+        <div class="notes-heading">
+          <div><p class="eyebrow">ВАШ ПЛАН</p><h2 id="notesTitle">Заметки на день</h2><p id="selectedDateLabel" class="selected-date-label"></p></div>
+        </div>
+        <div class="notes-card">
+          <div class="notes-table-head"><span>НАЧАЛО</span><span>КОНЕЦ</span><span>СОБЫТИЕ И МЕСТО</span><span></span></div>
+          <div id="notesRows" class="notes-rows"></div>
+          <div id="emptyNotes" class="empty-notes"><span class="empty-icon">✎</span><strong>Пока здесь пусто</strong><span>Добавьте время и место, которые хотите посетить</span></div>
+          <div class="notes-foot"><span class="save-indicator"><i></i> Сохраняется автоматически</span><span id="eventCount"></span></div>
+        </div>
+        <div class="notes-actions">
+          <button id="addEventBtn" class="add-button" type="button"><span>＋</span> Добавить событие</button>
+          <a class="map-action" href="/trip" aria-label="Открыть карту маршрута">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
+            <span>Карта маршрута</span>
+          </a>
+        </div>
+      </section>
+
+      <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
+    </main>
+    <script src="/planner.js"></script>
+  </body>
+</html>
