@@ -1,0 +1,6 @@
+.git
+.gitlab-ci.yml
+.env
+node_modules
+TravelHub.pdf
+README.md
