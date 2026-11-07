@@ -8,6 +8,16 @@
       "year": 2026,
       "startDate": "2026-11-07",
       "endDate": "2026-11-10"
+    },
+    {
+      "id": "trip_1794058231236_khoz5",
+      "title": "казань",
+      "destination": "казань",
+      "month": 5,
+      "year": 2029,
+      "startDate": "2029-05-01",
+      "endDate": "2029-05-04",
+      "createdAt": "2026-11-07T13:30:31.237Z"
     }
   ],
   "attractions": [
@@ -166,6 +176,14 @@
       "name": "тлот",
       "lat": 55.790883,
       "lng": 49.122233,
+      "description": "",
+      "tripId": "legacy"
+    },
+    {
+      "id": "p_1794058165022_015fn",
+      "name": "дом",
+      "lat": 55.759167,
+      "lng": 37.61605,
       "description": "",
       "tripId": "legacy"
     },

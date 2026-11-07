@@ -144,3 +144,6 @@ dialog::backdrop { background:#1f3b3db3; }
   *,*::before,*::after { animation:none!important; transition:none!important; }
   .trip-card:hover { transform:none; }
 }
+
+/* Keep map credits as text links without the Leaflet flag icon. */
+.leaflet-attribution-flag { display: none !important; }
