@@ -4,6 +4,7 @@ let attractions=[],userPosition=null,userMarker=null,watchId=null;
 let points = [];
 let events = [];
 let transfers = [];
+let tripStartDate = null;
 let selectedDate = '2025-06-12';
 let selectedKey = null;
 let markers = {};
@@ -41,7 +42,9 @@ const transportMeta = {
   other: { label: 'Другой транспорт', icon: '🚌', color: '#64748b' },
 };
 
+const activeTripId = new URLSearchParams(location.search).get('trip') || 'legacy';
 async function api(endpoint, options) {
+  if (/^\/api\/(points|events|transfers)(\/|$|\?)/.test(endpoint)) endpoint += (endpoint.includes('?') ? '&' : '?') + 'tripId=' + encodeURIComponent(activeTripId);
   const response = await fetch(endpoint, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
@@ -62,6 +65,12 @@ async function loadData() {
 }
 
 async function init() {
+  const trips = await api('/api/trips');
+  const trip = trips.find(t => t.id === activeTripId);
+  if (!trip) throw Error('Путешествие не найдено. Вернитесь на главную.');
+  document.querySelector('.trip').textContent = trip.title + ' · ' + trip.startDate;
+  tripStartDate = trip.startDate;
+  selectedDate = trip.startDate;
   await loadData();
   attractions=await api('/api/attractions');
   $('#attractionId').innerHTML='<option value="">Без экскурсионной точки</option>'+attractions.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
@@ -87,9 +96,8 @@ function dates() {
   const allItems = [...events, ...transfers];
   const dateSet = new Set(allItems.flatMap((item) => [item.date, item.endDate || item.date]));
   if (!dateSet.size) {
-    dateSet.add('2025-06-12');
-    dateSet.add('2025-06-13');
-    dateSet.add('2025-06-14');
+    const base = new Date((tripStartDate || new Date().toISOString().slice(0,10))+'T12:00:00');
+    for (let i=0;i<4;i++){const date=new Date(base);date.setDate(base.getDate()+i);dateSet.add(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`);}
   }
   return [...dateSet].filter(Boolean).sort();
 }

@@ -2,6 +2,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { AsyncLocalStorage } = require('async_hooks');
+const tripContext = new AsyncLocalStorage();
 
 const PORT = Number(process.env.PORT || 3000);
 const DB = path.join(__dirname, '..', 'data', 'db.json');
@@ -23,15 +25,24 @@ const TRANSFER_MODES = new Set(['walking', 'car', 'train', 'plane', 'other']);
 
 function readDb() {
   const data = JSON.parse(fs.readFileSync(DB, 'utf8'));
-  return {
+  const result = {
+    trips: Array.isArray(data.trips) ? data.trips : [],
     attractions: data.attractions || [],
     points: Array.isArray(data.points) ? data.points : [],
     events: Array.isArray(data.events) ? data.events : [],
     transfers: Array.isArray(data.transfers) ? data.transfers : [],
   };
+  const tripId = tripContext.getStore();
+  if (tripId) for (const key of ['points','events','transfers']) result[key] = result[key].filter(x => (x.tripId || 'legacy') === tripId);
+  return result;
 }
 
 function writeDb(data) {
+  const tripId = tripContext.getStore();
+  if (tripId) {
+    const full = JSON.parse(fs.readFileSync(DB, 'utf8'));
+    for (const key of ['points','events','transfers']) data[key] = [...(full[key] || []).filter(x => (x.tripId || 'legacy') !== tripId), ...data[key].map(x => ({...x, tripId}))];
+  }
   fs.writeFileSync(DB, JSON.stringify(data, null, 2));
 }
 
@@ -126,9 +137,29 @@ function withUtc(b){const out={...b}; out.startAt=new Date(`${out.date}T${out.st
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const pathname = parsed.pathname;
+  tripContext.enterWith(parsed.query.tripId || null);
   const pointMatch = pathname.match(/^\/api\/points\/([^/]+)$/);
 
   try {
+    if (req.method === 'GET' && pathname === '/api/trips') {
+      const db = readDb();
+      return sendJson(res, 200, db.trips.map((trip) => ({
+        ...trip,
+        pointsCount: db.points.filter((p) => (p.tripId || 'legacy') === trip.id).length,
+        eventsCount: db.events.filter((e) => (e.tripId || 'legacy') === trip.id).length,
+        days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 1,
+      })));
+    }
+    if (req.method === 'POST' && pathname === '/api/trips') {
+      const body = await parseBody(req);
+      if (!body.destination?.trim()) return sendJson(res, 400, { errors: ['Укажите место назначения'] });
+      const currentYear = new Date().getFullYear();
+      if (!Number.isInteger(Number(body.month)) || Number(body.month)<1 || Number(body.month)>12 || !Number.isInteger(Number(body.year)) || Number(body.year)<currentYear || Number(body.year)>currentYear+5) return sendJson(res,400,{errors:['Выберите доступные месяц и год']});
+      const startDate = `${body.year}-${String(Number(body.month)).padStart(2, '0')}-01`;
+      const end = new Date(`${startDate}T00:00:00`); end.setDate(end.getDate() + 3);
+      const item = { id: id('trip'), title: body.destination.trim(), destination: body.destination.trim(), month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
+      const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
+    }
     if(req.method==='GET'&&pathname==='/api/attractions')return sendJson(res,200,readDb().attractions||[]);const ar=pathname.match(/^\/api\/attractions\/([^/]+)\/reviews$/);if(ar&&req.method==='POST'){const b=await parseBody(req);if(!b.name?.trim()||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5||!b.text?.trim())return sendJson(res,400,{errors:['Имя, оценка от 1 до 5 и текст обязательны']});const d=readDb(),a=(d.attractions||[]).find(x=>x.id===ar[1]);if(!a)return sendJson(res,404,{error:'Точка не найдена'});const review={id:'r_'+Date.now(),name:b.name.trim(),rating:Number(b.rating),text:b.text.trim()};a.reviews=[...(a.reviews||[]),review];writeDb(d);return sendJson(res,201,review)}
     if (req.method === 'GET' && pathname === '/api/points') {
       return sendJson(res, 200, readDb().points);
@@ -265,7 +296,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET') {
-      const requestedPath = pathname === '/' ? '/index.html' : pathname;
+      const requestedPath = pathname === '/' ? '/home.html' : (pathname === '/trip' ? '/index.html' : pathname);
       const filePath = path.resolve(PUBLIC, `.${requestedPath}`);
       if (filePath.startsWith(`${PUBLIC}${path.sep}`) && fs.existsSync(filePath)) {
         const extension = path.extname(filePath);
@@ -280,4 +311,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`TravelHub: http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Traveler’s Glider: http://localhost:${PORT}`));

@@ -1,32 +1,15 @@
 {
-  "points": [
+  "trips": [
     {
-      "id": "p1",
-      "name": "Красная площадь",
-      "lat": 55.7539,
-      "lng": 37.6208,
-      "description": "Центр Москвы",
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "p2",
-      "name": "Третьяковская галерея",
-      "lat": 55.7415,
-      "lng": 37.6208,
-      "description": "Музей русского искусства",
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "p3",
-      "name": "Патриаршие пруды",
-      "lat": 55.7666,
-      "lng": 37.5922,
-      "description": "Прогулочная зона",
-      "timezone": "Europe/Moscow"
+      "id": "legacy",
+      "title": "Москва",
+      "destination": "Москва",
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-07",
+      "endDate": "2026-11-10"
     }
   ],
-  "events": [],
-  "transfers": [],
   "attractions": [
     {
       "id": "a1",
@@ -148,6 +131,91 @@
         }
       ],
       "timezone": "Europe/Moscow"
+    }
+  ],
+  "points": [
+    {
+      "id": "p1",
+      "name": "Красная площадь",
+      "lat": 55.7539,
+      "lng": 37.6208,
+      "description": "Центр Москвы",
+      "timezone": "Europe/Moscow",
+      "tripId": "legacy"
+    },
+    {
+      "id": "p2",
+      "name": "Третьяковская галерея",
+      "lat": 55.7415,
+      "lng": 37.6208,
+      "description": "Музей русского искусства",
+      "timezone": "Europe/Moscow",
+      "tripId": "legacy"
+    },
+    {
+      "id": "p3",
+      "name": "Патриаршие пруды",
+      "lat": 55.7666,
+      "lng": 37.5922,
+      "description": "Прогулочная зона",
+      "timezone": "Europe/Moscow",
+      "tripId": "legacy"
+    },
+    {
+      "id": "p_1794045844712_9t33a",
+      "name": "тлот",
+      "lat": 55.790883,
+      "lng": 49.122233,
+      "description": "",
+      "tripId": "legacy"
+    }
+  ],
+  "events": [
+    {
+      "title": "ужин",
+      "type": "excursion",
+      "date": "2025-06-12",
+      "startTime": "23:33",
+      "endTime": "23:44",
+      "endDate": "2025-06-12",
+      "pointId": null,
+      "attractionId": null,
+      "description": "",
+      "bookingUrl": "",
+      "materials": [],
+      "startAt": "2025-06-12T20:33:00.000Z",
+      "endAt": "2025-06-12T20:44:00.000Z",
+      "id": "e_1794055626909_zveij",
+      "createdAt": "2026-11-07T12:47:06.909Z",
+      "tripId": "legacy"
+    }
+  ],
+  "transfers": [
+    {
+      "fromPointId": "p1",
+      "toPointId": "p2",
+      "mode": "walking",
+      "date": "2025-06-12",
+      "startTime": "14:00",
+      "endDate": "2025-06-12",
+      "endTime": "14:50",
+      "description": "",
+      "id": "t_1794045105841_k6ff0",
+      "createdAt": "2026-11-07T09:51:45.842Z",
+      "tripId": "legacy"
+    },
+    {
+      "fromPointId": "p3",
+      "toPointId": "p1",
+      "mode": "car",
+      "date": "2025-06-12",
+      "startTime": "15:44",
+      "endDate": "2025-06-12",
+      "endTime": "16:07",
+      "description": "",
+      "id": "t_1794055816448_6iqwz",
+      "createdAt": "2026-11-07T12:50:16.448Z",
+      "tripId": "legacy"
     }
   ]
 }
