@@ -8,6 +8,9 @@ const tripContext = new AsyncLocalStorage();
 const PORT = Number(process.env.PORT || 3000);
 const DB = path.join(__dirname, '..', 'data', 'db.json');
 const PUBLIC = path.join(__dirname, '..', 'public');
+const UPLOADS = path.join(__dirname, '..', 'data', 'uploads');
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -62,6 +65,80 @@ function parseBody(req) {
       }
     });
   });
+}
+
+function readRequestBuffer(req, maxBytes) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        tooLarge = true;
+        chunks.length = 0;
+        return;
+      }
+      if (!tooLarge) chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (tooLarge) {
+        const error = new Error('Общий размер загружаемых фотографий не должен превышать 20 МБ');
+        error.statusCode = 413;
+        return reject(error);
+      }
+      resolve(Buffer.concat(chunks));
+    });
+    req.on('error', reject);
+  });
+}
+
+function parseMultipartFiles(buffer, contentType) {
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  if (!boundaryMatch) throw new Error('Не удалось прочитать загруженные файлы');
+
+  const boundary = Buffer.from(`--${(boundaryMatch[1] || boundaryMatch[2]).trim()}`);
+  const separator = Buffer.from('\r\n\r\n');
+  const files = [];
+  let cursor = buffer.indexOf(boundary);
+
+  while (cursor !== -1) {
+    cursor += boundary.length;
+    if (buffer.subarray(cursor, cursor + 2).toString() === '--') break;
+    if (buffer.subarray(cursor, cursor + 2).toString() === '\r\n') cursor += 2;
+
+    const headerEnd = buffer.indexOf(separator, cursor);
+    if (headerEnd === -1) break;
+    const headers = buffer.subarray(cursor, headerEnd).toString('utf8');
+    const nextBoundary = buffer.indexOf(boundary, headerEnd + separator.length);
+    if (nextBoundary === -1) break;
+
+    const contentEnd = Math.max(headerEnd + separator.length, nextBoundary - 2);
+    const content = buffer.subarray(headerEnd + separator.length, contentEnd);
+    const disposition = headers.match(/content-disposition:\s*form-data;([^\r\n]+)/i)?.[1] || '';
+    const fieldName = disposition.match(/(?:^|;)\s*name="([^"]+)"/i)?.[1];
+    const filename = disposition.match(/(?:^|;)\s*filename="([^"]*)"/i)?.[1];
+    if (fieldName === 'photos' && filename) {
+      const mimeType = (headers.match(/content-type:\s*([^\r\n]+)/i)?.[1] || '').trim().toLowerCase();
+      files.push({ mimeType, content });
+    }
+    cursor = nextBoundary;
+  }
+
+  return files;
+}
+
+function imageExtension(file) {
+  const jpeg = file.content.length >= 3
+    && file.content[0] === 0xff
+    && file.content[1] === 0xd8
+    && file.content[2] === 0xff;
+  const png = file.content.length >= 8
+    && file.content.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (jpeg && ['image/jpeg', 'image/jpg', 'image/pjpeg'].includes(file.mimeType)) return '.jpg';
+  if (png && file.mimeType === 'image/png') return '.png';
+  return null;
 }
 
 function sendJson(res, status, data) {
@@ -161,6 +238,39 @@ const server = http.createServer(async (req, res) => {
       const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
     }
     if(req.method==='GET'&&pathname==='/api/attractions')return sendJson(res,200,readDb().attractions||[]);const ar=pathname.match(/^\/api\/attractions\/([^/]+)\/reviews$/);if(ar&&req.method==='POST'){const b=await parseBody(req);if(!b.name?.trim()||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5||!b.text?.trim())return sendJson(res,400,{errors:['Имя, оценка от 1 до 5 и текст обязательны']});const d=readDb(),a=(d.attractions||[]).find(x=>x.id===ar[1]);if(!a)return sendJson(res,404,{error:'Точка не найдена'});const review={id:'r_'+Date.now(),name:b.name.trim(),rating:Number(b.rating),text:b.text.trim()};a.reviews=[...(a.reviews||[]),review];writeDb(d);return sendJson(res,201,review)}
+    if (req.method === 'POST' && pathname === '/api/uploads') {
+      const body = await readRequestBuffer(req, MAX_UPLOAD_BYTES);
+      const files = parseMultipartFiles(body, req.headers['content-type'] || '');
+      if (!files.length) return sendJson(res, 400, { error: 'Выберите фотографии JPG или PNG' });
+      if (files.length > 10) return sendJson(res, 400, { error: 'За один раз можно загрузить не больше 10 фотографий' });
+
+      for (const file of files) {
+        if (file.content.length > MAX_IMAGE_BYTES) {
+          return sendJson(res, 413, { error: 'Размер одной фотографии не должен превышать 10 МБ' });
+        }
+        if (!imageExtension(file)) {
+          return sendJson(res, 400, { error: 'Поддерживаются только изображения JPG и PNG' });
+        }
+      }
+
+      fs.mkdirSync(UPLOADS, { recursive: true });
+      const uploaded = files.map((file) => {
+        const filename = `${id('photo')}${imageExtension(file)}`;
+        fs.writeFileSync(path.join(UPLOADS, filename), file.content, { flag: 'wx' });
+        return { url: `/uploads/${filename}` };
+      });
+      return sendJson(res, 201, uploaded);
+    }
+
+    const uploadMatch = pathname.match(/^\/uploads\/([A-Za-z0-9_-]+\.(?:jpg|png))$/);
+    if (req.method === 'GET' && uploadMatch) {
+      const filePath = path.join(UPLOADS, uploadMatch[1]);
+      if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: 'Фото не найдено' });
+      const contentType = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=31536000, immutable' });
+      return fs.createReadStream(filePath).pipe(res);
+    }
+
     if (req.method === 'GET' && pathname === '/api/points') {
       return sendJson(res, 200, readDb().points);
     }
@@ -313,7 +423,7 @@ const server = http.createServer(async (req, res) => {
 
     return sendJson(res, 404, { error: 'Not found' });
   } catch (error) {
-    return sendJson(res, 500, { error: error.message });
+    return sendJson(res, error.statusCode || 500, { error: error.message });
   }
 });
 

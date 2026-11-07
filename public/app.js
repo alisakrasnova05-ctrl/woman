@@ -10,6 +10,10 @@ let selectedKey = null;
 let markers = {};
 let transferLines = [];
 let pickingPoint = false;
+let resumeEventAfterPoint = false;
+let eventMaterials = [];
+let pendingPhotos = [];
+let photoPreviewUrls = [];
 
 const map = L.map('map').setView([55.7558, 37.6173], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -94,7 +98,17 @@ function fillPointSelects() {
 
 function dates() {
   const allItems = [...events, ...transfers];
-  const dateSet = new Set(allItems.flatMap((item) => [item.date, item.endDate || item.date]));
+  const dateSet = new Set();
+  allItems.forEach((item) => {
+    if (!item.date) return;
+    const endDate = item.endDate || item.date;
+    let current = new Date(`${item.date}T00:00:00Z`);
+    const last = new Date(`${endDate}T00:00:00Z`);
+    while (current <= last) {
+      dateSet.add(current.toISOString().slice(0, 10));
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+  });
   if (!dateSet.size) {
     const base = new Date((tripStartDate || new Date().toISOString().slice(0,10))+'T12:00:00');
     for (let i=0;i<4;i++){const date=new Date(base);date.setDate(base.getDate()+i);dateSet.add(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`);}
@@ -131,12 +145,24 @@ function itemKey(kind, id) {
 
 function timelineItems() {
   return [
-    ...events.filter(visible).map((item) => ({ kind: 'event', item })),
-    ...transfers.filter(visible).map((item) => ({ kind: 'transfer', item })),
+    ...events.filter(visible).map((item) => ({
+      kind: 'event',
+      item,
+      continuation: item.date < selectedDate,
+    })),
+    ...transfers.filter(visible).map((item) => ({
+      kind: 'transfer',
+      item,
+      continuation: item.date < selectedDate,
+    })),
   ].sort((a, b) => {
-    const dateCompare = (a.item.date || '').localeCompare(b.item.date || '');
+    const aDate = a.continuation ? selectedDate : a.item.date || '';
+    const bDate = b.continuation ? selectedDate : b.item.date || '';
+    const dateCompare = aDate.localeCompare(bDate);
     if (dateCompare) return dateCompare;
-    const timeCompare = (a.item.startTime || '').localeCompare(b.item.startTime || '');
+    const aTime = a.continuation ? '00:00' : a.item.startTime || '';
+    const bTime = b.continuation ? '00:00' : b.item.startTime || '';
+    const timeCompare = aTime.localeCompare(bTime);
     if (timeCompare) return timeCompare;
     return a.kind === 'transfer' ? -1 : 1;
   });
@@ -146,7 +172,9 @@ function render() {
   renderDays();
   const items = timelineItems();
   $('#timeline').innerHTML = items.length
-    ? items.map(({ kind, item }) => kind === 'event' ? eventCard(item) : transferCard(item)).join('')
+    ? items.map(({ kind, item, continuation }) => (
+      kind === 'event' ? eventCard(item, continuation) : transferCard(item)
+    )).join('')
     : '<div class="empty">В этот день пока нет событий и перемещений.<br>Добавьте первый элемент.</div>';
 
   document.querySelectorAll('.timeline-item').forEach((element) => {
@@ -190,7 +218,9 @@ function render() {
   drawMap(items);
 }
 
-function eventCard(event){return featureCard(event)}
+function eventCard(event, continuation = false) {
+  return featureCard(event, continuation);
+}
 
 function transferCard(transfer) {
   const from = points.find((item) => item.id === transfer.fromPointId);
@@ -306,8 +336,13 @@ function selectItem(kind, id, pan = true) {
 }
 
 function openEventForm(event) {
+  photoPreviewUrls.forEach((photoUrl) => URL.revokeObjectURL(photoUrl));
+  photoPreviewUrls = [];
+  pendingPhotos = [];
+  eventMaterials = [...(event?.materials || [])];
   $('#eventForm').reset();
   $('#formError').textContent = '';
+  $('#photoPreview').innerHTML = '';
   $('#eventId').value = event?.id || '';
   $('#formTitle').textContent = event ? 'Редактировать событие' : 'Новое событие';
   if (event) {
@@ -319,6 +354,7 @@ function openEventForm(event) {
     $('#date').value = selectedDate;
     $('#endDate').value = selectedDate;
   }
+  renderPhotoPreview();
   $('#eventDialog').showModal();
 }
 
@@ -343,7 +379,8 @@ function openTransferForm(transfer) {
   $('#transferDialog').showModal();
 }
 
-function openPointForm(point) {
+function openPointForm(point, returnToEvent = false) {
+  resumeEventAfterPoint = returnToEvent;
   $('#pointForm').reset();
   $('#pointFormError').textContent = '';
   $('#pointEditId').value = point?.id || '';
@@ -370,14 +407,32 @@ $('#addTransferBtn').onclick = () => openTransferForm();
 $('#closeTransferBtn').onclick = () => $('#transferDialog').close();
 $('#cancelTransferBtn').onclick = () => $('#transferDialog').close();
 
-$('#addPointBtn').onclick = () => openPointForm();
-$('#closePointBtn').onclick = () => $('#pointDialog').close();
-$('#cancelPointBtn').onclick = () => $('#pointDialog').close();
+$('#addPointFromEventBtn').onclick = () => openPointForm(null, true);
+$('#closePointBtn').onclick = () => closePointForm();
+$('#cancelPointBtn').onclick = () => closePointForm();
 $('#pickPointBtn').onclick = () => {
+  resumeEventAfterPoint = $('#eventDialog').open;
   pickingPoint = true;
   document.body.classList.add('picking-point');
   $('#pointPickHint').textContent = 'Нажмите на нужное место на карте.';
   $('#pointDialog').close();
+  if ($('#eventDialog').open) $('#eventDialog').close();
+};
+
+$('#photoFiles').onchange = () => {
+  const selectedPhotos = [...$('#photoFiles').files];
+  const invalidPhoto = selectedPhotos.find((photo) => (
+    !['image/jpeg', 'image/png'].includes(photo.type) || photo.size > 10 * 1024 * 1024
+  ));
+  if (invalidPhoto) {
+    $('#formError').textContent = 'Выберите JPG или PNG не больше 10 МБ каждый.';
+    $('#photoFiles').value = '';
+    return;
+  }
+  $('#formError').textContent = '';
+  pendingPhotos.push(...selectedPhotos);
+  $('#photoFiles').value = '';
+  renderPhotoPreview();
 };
 
 $('#eventForm').onsubmit = async (submitEvent) => {
@@ -392,12 +447,15 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     pointId: $('#pointId').value || null,
     attractionId: $('#attractionId').value || null,
     description: $('#description').value,
-    bookingUrl: $('#bookingUrl').value,
-    materials: $('#materials').value.split(',').map((value) => value.trim()).filter(Boolean),
+    materials: [...eventMaterials],
   };
 
   try {
     const id = $('#eventId').value;
+    if (pendingPhotos.length) {
+      const uploadedPhotos = await uploadPhotos(pendingPhotos);
+      data.materials.push(...uploadedPhotos.map((photo) => photo.url));
+    }
     await api(id ? `/api/events/${id}` : '/api/events', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(data),
@@ -405,6 +463,8 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     await loadData();
     selectedDate = data.date;
     $('#eventDialog').close();
+    pendingPhotos = [];
+    eventMaterials = [];
     render();
   } catch (error) {
     $('#formError').textContent = error.message;
@@ -450,14 +510,20 @@ $('#pointForm').onsubmit = async (submitEvent) => {
 
   try {
     const id = $('#pointEditId').value;
-    await api(id ? `/api/points/${id}` : '/api/points', {
+    const savedPoint = await api(id ? `/api/points/${id}` : '/api/points', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(data),
     });
     await loadData();
     fillPointSelects();
     $('#pointDialog').close();
-    render();
+    if (resumeEventAfterPoint) {
+      resumeEventAfterPoint = false;
+      $('#pointId').value = savedPoint.id;
+      if (!$('#eventDialog').open) $('#eventDialog').showModal();
+    } else {
+      render();
+    }
   } catch (error) {
     $('#pointFormError').textContent = error.message;
   }
@@ -502,7 +568,41 @@ function isNow(e){if(!e.startAt)return false;const now=Date.now(),start=Date.par
 function distanceKm(a,b){const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLon=(b.lng-a.lng)*Math.PI/180;const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
 function fmtDistance(k){return k<1?Math.round(k*1000)+' м':k.toFixed(1)+' км'}
 function offsetFor(tz){try{const parts=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'longOffset'}).formatToParts(new Date());return parts.find(x=>x.type==='timeZoneName')?.value.replace('GMT','UTC')||tz}catch{return tz}}
-function featureCard(e){const attraction=attractions.find(a=>a.id===e.attractionId);const p=points.find(p=>p.id===e.pointId);const mats=(e.materials||[]).filter(Boolean).map(u=>`<img src="${u}" onerror="this.style.display='none'">`).join('');return `<article class="timeline-item event ${selectedKey===itemKey('event',e.id)?'selected':''}" data-kind="event" data-id="${e.id}"><div class="event-actions"><button class="icon" data-edit-event="${e.id}">✎</button><button class="icon" data-delete-event="${e.id}">×</button></div><div class="event-time">${eventIcons[e.type]||'✨'} ${e.startTime}${e.endTime?' — '+e.endTime:''} ${offsetFor(points.find(p=>p.id===e.pointId)?.timezone||'Europe/Moscow')}${isNow(e)?'<span class="now-badge">идёт сейчас</span>':''}${e.endDate&&e.endDate!==e.date?' · '+e.endDate:''}</div><div class="event-title">${esc(e.title)}</div><div class="event-meta">${p? '📍 '+esc(p.name):'Без геоточки'}</div>${e.description?`<div class="event-desc">${esc(e.description)}</div>`:''}${attraction?`<div class="event-meta">📸 ${esc(attraction.name)}</div><div class="materials">${(attraction.photos||[]).slice(0,3).map(u=>`<img src="${u}" onerror="this.style.display='none'">`).join('')}</div>`:''}${userPosition&&p?`<div class="distance">${fmtDistance(distanceKm(userPosition,p))} до места <a class="route-link" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}">Построить маршрут</a></div>`:''}${e.bookingUrl?`<div class="event-meta"><a href="${esc(e.bookingUrl)}" target="_blank" rel="noopener">🎟 Бронь / билет</a></div>`:''}${mats?`<div class="materials">${mats}</div>`:''}</article>`}
+function featureCard(event, continuation = false) {
+  const attraction = attractions.find((item) => item.id === event.attractionId);
+  const point = points.find((item) => item.id === event.pointId);
+  const photos = (event.materials || [])
+    .filter(Boolean)
+    .map((photo) => `<img src="${esc(photo)}" alt="" onerror="this.style.display='none'">`)
+    .join('');
+  const time = continuation
+    ? `Продолжение · до ${esc(event.endTime || 'конца дня')}`
+    : `${esc(event.startTime)}${event.endTime ? ` — ${esc(event.endTime)}` : ''}`;
+  const timezone = offsetFor(point?.timezone || 'Europe/Moscow');
+  const endDate = !continuation && event.endDate && event.endDate !== event.date
+    ? ` · до ${esc(event.endDate)}`
+    : '';
+  const attractionPhotos = (attraction?.photos || []).slice(0, 3)
+    .map((photo) => `<img src="${esc(photo)}" alt="" onerror="this.style.display='none'">`)
+    .join('');
+
+  return `
+    <article class="timeline-item event ${selectedKey === itemKey('event', event.id) ? 'selected' : ''}" data-kind="event" data-id="${esc(event.id)}">
+      <div class="event-actions">
+        <button class="icon" type="button" data-edit-event="${esc(event.id)}">✎</button>
+        <button class="icon" type="button" data-delete-event="${esc(event.id)}">×</button>
+      </div>
+      <div class="event-time">${eventIcons[event.type] || '✨'} ${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</div>
+      <div class="event-title">${esc(event.title)}</div>
+      <div class="event-meta">${point ? `📍 ${esc(point.name)}` : 'Без геоточки'}</div>
+      ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
+      ${attraction ? `<div class="event-meta">📸 ${esc(attraction.name)}</div><div class="materials">${attractionPhotos}</div>` : ''}
+      ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
+      ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">🎟 Бронь / билет</a></div>` : ''}
+      ${photos ? `<div class="materials">${photos}</div>` : ''}
+    </article>
+  `;
+}
 function renderAttractions(){$('#attractions').innerHTML=attractions.map(a=>`<div class="attraction-card" data-attraction="${a.id}"><img src="${a.photos?.[0]||''}" onerror="this.style.display='none'"><b>${esc(a.name)}</b><span class="stars">${stars(avg(a))}</span></div>`).join('');document.querySelectorAll('[data-attraction]').forEach(el=>el.onclick=()=>openAttraction(el.dataset.attraction));}
 function avg(a){const r=a.reviews||[];return r.length?r.reduce((x,y)=>x+y.rating,0)/r.length:0}
 function stars(n){return '★★★★★'.slice(0,Math.round(n))+'☆☆☆☆☆'.slice(0,5-Math.round(n))}
@@ -514,3 +614,47 @@ $('#locateBtn').onclick=locate;setInterval(()=>{updateClock();document.querySele
 init().catch((error) => {
   $('#timeline').innerHTML = `<div class="error">Не удалось загрузить данные: ${esc(error.message)}</div>`;
 });
+
+function renderPhotoPreview() {
+  photoPreviewUrls.forEach((photoUrl) => URL.revokeObjectURL(photoUrl));
+  photoPreviewUrls = [];
+  const existing = eventMaterials.map((photoUrl, index) => ({ photoUrl, index, isPending: false }));
+  const pending = pendingPhotos.map((file, index) => {
+    const photoUrl = URL.createObjectURL(file);
+    photoPreviewUrls.push(photoUrl);
+    return { photoUrl, index, isPending: true };
+  });
+
+  $('#photoPreview').innerHTML = [...existing, ...pending].map((photo) => `
+    <div class="photo-preview-item">
+      <img src="${esc(photo.photoUrl)}" alt="Прикреплённое фото">
+      <button type="button" aria-label="Убрать фото" data-remove-photo="${photo.index}" data-pending="${photo.isPending}">×</button>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('[data-remove-photo]').forEach((button) => {
+    button.onclick = () => {
+      const index = Number(button.dataset.removePhoto);
+      if (button.dataset.pending === 'true') pendingPhotos.splice(index, 1);
+      else eventMaterials.splice(index, 1);
+      renderPhotoPreview();
+    };
+  });
+}
+
+async function uploadPhotos(files) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('photos', file));
+  const response = await fetch('/api/uploads', { method: 'POST', body: formData });
+  const result = await response.json();
+  if (!response.ok) throw Error(result.error || 'Не удалось загрузить фотографии');
+  return result;
+}
+
+function closePointForm() {
+  $('#pointDialog').close();
+  if (resumeEventAfterPoint && !$('#eventDialog').open && !pickingPoint) {
+    $('#eventDialog').showModal();
+    resumeEventAfterPoint = false;
+  }
+}

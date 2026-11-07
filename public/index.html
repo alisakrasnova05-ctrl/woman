@@ -20,7 +20,6 @@
           <div class="section-actions">
             <button id="addBtn" class="primary" type="button">＋ Событие</button>
             <button id="addTransferBtn" class="secondary" type="button">↔ Перемещение</button>
-            <button id="addPointBtn" class="secondary" type="button">＋ Точка</button>
           </div>
         </div>
         <h3 class="subhead">Экскурсионные точки Казани</h3><div id="attractions" class="attractions"></div>
@@ -79,14 +78,18 @@
           <label>Начало<input type="time" id="startTime" required></label>
           <label>Окончание<input type="time" id="endTime"></label>
         </div>
-        <label>Дата окончания (если после полуночи)<input type="date" id="endDate"></label>
+        <label>Дата окончания<input type="date" id="endDate"></label>
         <label>Точка маршрута
           <select id="pointId"><option value="">Без геоточки</option></select>
         </label>
+        <button type="button" id="addPointFromEventBtn" class="inline-add-point">＋ Создать точку</button>
         <label>Экскурсионная точка (необязательно)<select id="attractionId"><option value="">Без экскурсионной точки</option></select></label>
         <label>Описание<textarea id="description" rows="3"></textarea></label>
-        <label>Ссылка на билет / бронь<input type="url" id="bookingUrl" placeholder="https://..."></label>
-        <label>Материалы (ссылки через запятую)<input id="materials" placeholder="https://...jpg, https://...jpg"></label>
+        <label>Фотографии
+          <input type="file" id="photoFiles" accept="image/jpeg,image/png" multiple>
+        </label>
+        <div class="photo-help">Можно прикрепить несколько изображений JPG или PNG, до 10 МБ каждое.</div>
+        <div id="photoPreview" class="photo-preview"></div>
         <div id="formError" class="error"></div>
         <div class="actions">
           <button type="button" id="cancelBtn" class="secondary">Отмена</button>

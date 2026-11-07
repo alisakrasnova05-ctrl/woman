@@ -194,6 +194,14 @@
       "lng": 37.626053,
       "description": "",
       "tripId": "legacy"
+    },
+    {
+      "id": "p_1794058301794_rk319",
+      "name": "аэропорт",
+      "lat": 55.768993,
+      "lng": 37.607338,
+      "description": "",
+      "tripId": "legacy"
     }
   ],
   "events": [
@@ -213,6 +221,40 @@
       "endAt": "2025-06-12T20:44:00.000Z",
       "id": "e_1794055626909_zveij",
       "createdAt": "2026-11-07T12:47:06.909Z",
+      "tripId": "legacy"
+    },
+    {
+      "title": "влвльвьлвл",
+      "type": "excursion",
+      "date": "2025-06-12",
+      "startTime": "12:00",
+      "endTime": "12:06",
+      "endDate": "2025-06-12",
+      "pointId": "p3",
+      "description": "швышовошвышовы",
+      "materials": [
+        "/uploads/photo_1794057288235_f0eql.jpg"
+      ],
+      "id": "e_1794057288242_y0l3o",
+      "createdAt": "2026-11-07T13:14:48.242Z"
+    },
+    {
+      "title": "оилрирлпи",
+      "type": "excursion",
+      "date": "2025-06-12",
+      "startTime": "12:00",
+      "endTime": "13:00",
+      "endDate": "2025-06-12",
+      "pointId": "p_1794058301794_rk319",
+      "attractionId": null,
+      "description": "ляляляля",
+      "materials": [
+        "/uploads/photo_1794058310110_g38jd.jpg"
+      ],
+      "startAt": "2025-06-12T09:00:00.000Z",
+      "endAt": "2025-06-12T10:00:00.000Z",
+      "id": "e_1794058310113_awaaj",
+      "createdAt": "2026-11-07T13:31:50.113Z",
       "tripId": "legacy"
     }
   ],
