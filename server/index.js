@@ -124,9 +124,9 @@ function parseMultipartFiles(buffer, contentType) {
     const disposition = headers.match(/content-disposition:\s*form-data;([^\r\n]+)/i)?.[1] || '';
     const fieldName = disposition.match(/(?:^|;)\s*name="([^"]+)"/i)?.[1];
     const filename = disposition.match(/(?:^|;)\s*filename="([^"]*)"/i)?.[1];
-    if (fieldName === 'photos' && filename) {
+    if (['photos', 'attachments'].includes(fieldName) && filename) {
       const mimeType = (headers.match(/content-type:\s*([^\r\n]+)/i)?.[1] || '').trim().toLowerCase();
-      files.push({ mimeType, content });
+      files.push({ mimeType, content, filename, fieldName });
     }
     cursor = nextBoundary;
   }
@@ -141,6 +141,7 @@ function imageExtension(file) {
     && file.content[2] === 0xff;
   const png = file.content.length >= 8
     && file.content.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (file.fieldName === 'attachments' && file.mimeType === 'application/pdf' && file.content.subarray(0, 5).toString() === '%PDF-') return '.pdf';
   if (jpeg && ['image/jpeg', 'image/jpg', 'image/pjpeg'].includes(file.mimeType)) return '.jpg';
   if (png && file.mimeType === 'image/png') return '.png';
   return null;
@@ -167,6 +168,7 @@ function isVisibleOnDate(item, date) {
 function validateEvent(body) {
   const errors = [];
   if (!body.title?.trim()) errors.push('Название обязательно');
+  if (body.ticket?.url && (!/^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png|pdf)$/.test(body.ticket.url) || !fs.existsSync(path.join(UPLOADS, path.basename(body.ticket.url))))) errors.push('Файл билета не найден на сервере');
   if (!body.date) errors.push('Дата обязательна');
   if (!body.startTime) errors.push('Время начала обязательно');
   if (body.endDate && body.endDate < body.date) errors.push('Дата окончания не может быть раньше даты начала');
@@ -302,7 +304,7 @@ const server = http.createServer(async (req, res) => {
       if(!validPlanDate(body.date))return sendJson(res,400,{error:'Выберите день в календаре'});
       if(activePlanRequests>=3)return sendJson(res,429,{error:'Сейчас обрабатываются другие планы. Повторите чуть позже — текст сохранён.'});
       activePlanRequests++;
-      try {return sendJson(res,200,await parsePlans(body.text,{date:body.date,city:trip.city || {name:trip.destination||trip.title}}));}
+      try {return sendJson(res,200,await parsePlans(body.text,{date:body.date,tripStart:trip.startDate,tripEnd:trip.endDate,city:trip.city || {name:trip.destination||trip.title}}));}
       finally {activePlanRequests--;}
     }
     const daySaveMatch = pathname.match(/^\/api\/trips\/([^/]+)\/day-events$/);
@@ -312,11 +314,12 @@ const server = http.createServer(async (req, res) => {
       if (!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
       if (!Array.isArray(body.events) || body.events.length>200) return sendJson(res,400,{error:'Допустимо до 200 событий'});
       const prepared = [];
+      const imported=new Set();
       for (const entry of body.events) {
         if(!entry || typeof entry!=='object')return sendJson(res,400,{error:'Некорректное событие'});
         const errors = validateEvent(entry);
         if(typeof entry.dayNoteId!=='string'||!entry.dayNoteId) errors.push('Не указан идентификатор черновика');
-        if(!['excursion','stay','restaurant','meeting','other'].includes(entry.type))errors.push('Некорректный тип события');
+        if(!['excursion','stay','restaurant','meeting','walking','other'].includes(entry.type))errors.push('Некорректный тип события');
         if(!/^\d{4}-\d{2}-\d{2}$/.test(entry.date||'') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.startTime||'')) errors.push('Некорректные дата или время');
         if (!entry.title?.trim() || !entry.startTime || !entry.date) errors.push('Заполните название, дату и время начала каждого события');
         if (entry.pointId && !db.points.some(p=>p.id===entry.pointId && (p.tripId||'legacy')===tripId)) errors.push('Точка не принадлежит поездке');
@@ -329,13 +332,18 @@ const server = http.createServer(async (req, res) => {
           if(!point){point={id:id('p'),tripId,name:place.name.trim().slice(0,200),lat:place.lat,lng:place.lng,description:typeof place.address==='string'?place.address.slice(0,500):''};db.points.push(point);}
           pointId=point.id;
         }
-        const {place,...fields}=entry;
-        let event;try {event=withUtc({...fields,pointId});} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
         const existing=db.events.find(e=>e.dayNoteId===entry.dayNoteId && e.source==='day-notes' && e.tripId===tripId);
-        prepared.push({...event,id:existing?.id||id('e'),tripId,source:'day-notes',dayNoteId:String(entry.dayNoteId),createdAt:existing?.createdAt||new Date().toISOString()});
+        const original=entry.originalEventId && db.events.find(e=>e.id===entry.originalEventId && (e.tripId||'legacy')===tripId);
+        if(entry.originalEventId && !original)return sendJson(res,400,{error:'Исходное событие не принадлежит поездке'});
+        if(original&&imported.has(original.id))return sendJson(res,400,{error:'Одно событие нельзя переносить дважды в одной пачке'});
+        if(original)imported.add(original.id);
+        const {place,originalEventId,...fields}=entry;
+        if(fields.schedule)fields.schedule={automatic:fields.schedule.automatic===true,dateExplicit:fields.schedule.dateExplicit===true,timeExplicit:fields.schedule.timeExplicit===true};
+        let event;try {event=withUtc({...existing,...original,...fields,pointId});} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
+        prepared.push({...event,id:existing?.id||original?.id||id('e'),tripId,source:'day-notes',dayNoteId:String(entry.dayNoteId),createdAt:existing?.createdAt||original?.createdAt||new Date().toISOString()});
       }
       if(new Set(prepared.map(e=>e.dayNoteId)).size!==prepared.length) return sendJson(res,400,{error:'Повторяющиеся события в черновике'});
-      db.events=db.events.filter(e=>!(e.source==='day-notes' && e.tripId===tripId));
+      db.events=db.events.filter(e=>!(e.source==='day-notes' && e.tripId===tripId) && !imported.has(e.id));
       db.events.push(...prepared);writeDb(db);return sendJson(res,200,{events:prepared});
     }
     const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
@@ -431,7 +439,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 413, { error: 'Размер одной фотографии не должен превышать 10 МБ' });
         }
         if (!imageExtension(file)) {
-          return sendJson(res, 400, { error: 'Поддерживаются только изображения JPG и PNG' });
+          return sendJson(res, 400, { error: 'Поддерживаются JPG, PNG и билеты PDF' });
         }
       }
 
@@ -439,17 +447,17 @@ const server = http.createServer(async (req, res) => {
       const uploaded = files.map((file) => {
         const filename = `${id('photo')}${imageExtension(file)}`;
         fs.writeFileSync(path.join(UPLOADS, filename), file.content, { flag: 'wx' });
-        return { url: `/uploads/${filename}` };
+        return { url: `/uploads/${filename}`, name: path.basename(file.filename), type: file.mimeType, size: file.content.length };
       });
       return sendJson(res, 201, uploaded);
     }
 
-    const uploadMatch = pathname.match(/^\/uploads\/([A-Za-z0-9_-]+\.(?:jpg|png))$/);
+    const uploadMatch = pathname.match(/^\/uploads\/([A-Za-z0-9_-]+\.(?:jpg|png|pdf))$/);
     if (req.method === 'GET' && uploadMatch) {
       const filePath = path.join(UPLOADS, uploadMatch[1]);
       if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: 'Фото не найдено' });
-      const contentType = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-      res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=31536000, immutable' });
+      const contentType = filePath.endsWith('.pdf') ? 'application/pdf' : filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      res.writeHead(200, { 'Content-Type': contentType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=31536000, immutable' });
       return fs.createReadStream(filePath).pipe(res);
     }
 

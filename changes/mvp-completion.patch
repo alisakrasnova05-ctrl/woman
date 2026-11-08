@@ -1,0 +1,476 @@
+--- a/server/index.js
++++ b/server/index.js
+@@ -124,9 +124,9 @@
+     const disposition = headers.match(/content-disposition:\s*form-data;([^\r\n]+)/i)?.[1] || '';
+     const fieldName = disposition.match(/(?:^|;)\s*name="([^"]+)"/i)?.[1];
+     const filename = disposition.match(/(?:^|;)\s*filename="([^"]*)"/i)?.[1];
+-    if (fieldName === 'photos' && filename) {
++    if (['photos', 'attachments'].includes(fieldName) && filename) {
+       const mimeType = (headers.match(/content-type:\s*([^\r\n]+)/i)?.[1] || '').trim().toLowerCase();
+-      files.push({ mimeType, content });
++      files.push({ mimeType, content, filename, fieldName });
+     }
+     cursor = nextBoundary;
+   }
+@@ -141,6 +141,7 @@
+     && file.content[2] === 0xff;
+   const png = file.content.length >= 8
+     && file.content.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
++  if (file.fieldName === 'attachments' && file.mimeType === 'application/pdf' && file.content.subarray(0, 5).toString() === '%PDF-') return '.pdf';
+   if (jpeg && ['image/jpeg', 'image/jpg', 'image/pjpeg'].includes(file.mimeType)) return '.jpg';
+   if (png && file.mimeType === 'image/png') return '.png';
+   return null;
+@@ -167,6 +168,7 @@
+ function validateEvent(body) {
+   const errors = [];
+   if (!body.title?.trim()) errors.push('Название обязательно');
++  if (body.ticket?.url && (!/^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png|pdf)$/.test(body.ticket.url) || !fs.existsSync(path.join(UPLOADS, path.basename(body.ticket.url))))) errors.push('Файл билета не найден на сервере');
+   if (!body.date) errors.push('Дата обязательна');
+   if (!body.startTime) errors.push('Время начала обязательно');
+   if (body.endDate && body.endDate < body.date) errors.push('Дата окончания не может быть раньше даты начала');
+@@ -312,7 +314,7 @@
+         if(!entry || typeof entry!=='object')return sendJson(res,400,{error:'Некорректное событие'});
+         const errors = validateEvent(entry);
+         if(typeof entry.dayNoteId!=='string'||!entry.dayNoteId) errors.push('Не указан идентификатор черновика');
+-        if(!['excursion','stay','restaurant','meeting','other'].includes(entry.type))errors.push('Некорректный тип события');
++        if(!['excursion','stay','restaurant','meeting','walking','other'].includes(entry.type))errors.push('Некорректный тип события');
+         if(!/^\d{4}-\d{2}-\d{2}$/.test(entry.date||'') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.startTime||'')) errors.push('Некорректные дата или время');
+         if (!entry.title?.trim() || !entry.startTime || !entry.date) errors.push('Заполните название, дату и время начала каждого события');
+         if (entry.pointId && !db.points.some(p=>p.id===entry.pointId && (p.tripId||'legacy')===tripId)) errors.push('Точка не принадлежит поездке');
+@@ -402,7 +404,7 @@
+           return sendJson(res, 413, { error: 'Размер одной фотографии не должен превышать 10 МБ' });
+         }
+         if (!imageExtension(file)) {
+-          return sendJson(res, 400, { error: 'Поддерживаются только изображения JPG и PNG' });
++          return sendJson(res, 400, { error: 'Поддерживаются JPG, PNG и билеты PDF' });
+         }
+       }
+ 
+@@ -410,17 +412,17 @@
+       const uploaded = files.map((file) => {
+         const filename = `${id('photo')}${imageExtension(file)}`;
+         fs.writeFileSync(path.join(UPLOADS, filename), file.content, { flag: 'wx' });
+-        return { url: `/uploads/${filename}` };
++        return { url: `/uploads/${filename}`, name: path.basename(file.filename), type: file.mimeType, size: file.content.length };
+       });
+       return sendJson(res, 201, uploaded);
+     }
+ 
+-    const uploadMatch = pathname.match(/^\/uploads\/([A-Za-z0-9_-]+\.(?:jpg|png))$/);
++    const uploadMatch = pathname.match(/^\/uploads\/([A-Za-z0-9_-]+\.(?:jpg|png|pdf))$/);
+     if (req.method === 'GET' && uploadMatch) {
+       const filePath = path.join(UPLOADS, uploadMatch[1]);
+       if (!fs.existsSync(filePath)) return sendJson(res, 404, { error: 'Фото не найдено' });
+-      const contentType = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+-      res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=31536000, immutable' });
++      const contentType = filePath.endsWith('.pdf') ? 'application/pdf' : filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
++      res.writeHead(200, { 'Content-Type': contentType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=31536000, immutable' });
+       return fs.createReadStream(filePath).pipe(res);
+     }
+ 
+--- a/public/app.js
++++ b/public/app.js
+@@ -16,6 +16,7 @@
+ let pendingPhotos = [];
+ let photoPreviewUrls = [];
+ let savedPoints=[],savedEvents=[];
++let historyMode = false;
+ 
+ const map = L.map('map').setView([25, 10], 2);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+@@ -37,6 +38,7 @@
+   stay: GliderIcons.icon("stay"),
+   restaurant: GliderIcons.icon("restaurant"),
+   meeting: GliderIcons.icon("meeting"),
++  walking: GliderIcons.icon("walking"),
+   other: GliderIcons.icon("other"),
+ };
+ 
+@@ -129,6 +131,7 @@
+     const error = await response.json();
+     throw Error((error.errors || [error.error]).join(', '));
+   }
++  if(options?.method && options.method!=='GET'){try{localStorage.setItem('glider-trips-updated',JSON.stringify({tripId:activeTripId,at:Date.now()}));}catch{}}
+   return response.status === 204 ? null : response.json();
+ }
+ 
+@@ -229,7 +232,23 @@
+   return [...dateSet].filter(Boolean).sort();
+ }
+ 
++function changeHistoryDay(offset) {
++  const list=dates(), index=list.indexOf(selectedDate);
++  selectedDate=list[Math.max(0,Math.min(list.length-1,index+offset))];
++  selectedKey=null;lastPlace=null;render();
++  const locations=Object.values(markers).map(marker=>marker.getLatLng());
++  if(locations.length)map.flyToBounds(L.latLngBounds(locations),{...motionOptions(),padding:[35,35],maxZoom:15});
++  saveMapState();
++}
++$('#addPointBtn').onclick=()=>openPointForm();
++$('#historyToggle').onclick=()=>{historyMode=!historyMode;$('#historyToggle').setAttribute('aria-pressed',String(historyMode));render();if(historyMode)changeHistoryDay(0);};
++$('#historyPrev').onclick=()=>changeHistoryDay(-1);
++$('#historyNext').onclick=()=>changeHistoryDay(1);
+ function renderDays() {
++  const list=dates(),index=list.indexOf(selectedDate);
++  $('#historyNavigation').hidden=!historyMode;
++  $('#historyPosition').textContent=`День ${index+1} из ${list.length} · ${new Date(selectedDate+'T12:00:00').toLocaleDateString('ru-RU')}`;
++  $('#historyPrev').disabled=index<=0;$('#historyNext').disabled=index>=list.length-1;
+   $('#days').innerHTML = dates()
+     .map((date) => `
+       <button class="day ${date === selectedDate ? 'active' : ''}" data-date="${date}">
+@@ -242,7 +261,7 @@
+     button.onclick = () => {
+       selectedDate = button.dataset.date;
+       selectedKey = null;
+-      render();
++      lastPlace=null;render();if(historyMode)changeHistoryDay(0);saveMapState();
+     };
+   });
+ }
+@@ -329,6 +348,7 @@
+     };
+   });
+ 
++  document.querySelectorAll('.materials a,.event-meta a').forEach(link=>link.addEventListener('click',event=>event.stopPropagation()));
+   drawMap(items);
+ }
+ 
+@@ -366,7 +386,9 @@
+   markers = {};
+   transferLines = [];
+ 
+-  points.forEach((point) => {
++  const dayPoints=new Set(items.flatMap(({kind,item})=>kind==='event'?[item.pointId]:[item.fromPointId,item.toPointId]));
++  const referenced=new Set([...events.map(e=>e.pointId),...transfers.flatMap(t=>[t.fromPointId,t.toPointId])]);
++  points.filter(point=>dayPoints.has(point.id)||(!historyMode&&!referenced.has(point.id))).forEach((point) => {
+     const key = `point:${point.id}`;
+     const marker = L.marker([point.lat, point.lng], {icon:L.divIcon({className:"journal-marker",html:GliderIcons.icon(events.find(e=>e.pointId===point.id)?.type || "pin"),iconSize:[34,34],iconAnchor:[17,30]})})
+       .addTo(map)
+@@ -396,12 +418,14 @@
+         color: meta.color,
+         weight: selected ? 7 : 4,
+         opacity: selected ? 1 : 0.8,
+-        dashArray: '9 7',
++        dashArray: item.mode==='plane'?'12 9':item.mode==='car'?null:'4 6',
+         className: 'journal-route',
+       },
+     )
+       .addTo(map)
+       .bindPopup(`<b>${esc(from.name)} → ${esc(to.name)}</b><br>${meta.icon} ${esc(meta.label)} · ${esc(item.startTime)} — ${esc(item.endTime)}`);
++    const order=[...transfers].sort((a,b)=>`${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`)).findIndex(transfer=>transfer.id===item.id)+1;
++    line.bindTooltip(`${order}. ${esc(meta.label)}: ${esc(from.name)} → ${esc(to.name)}`,{permanent:true,direction:'center',className:'transport-label'});
+     line.on('click', () => selectItem('transfer', item.id, false));
+     transferLines.push(line);
+ 
+@@ -414,7 +438,7 @@
+         weight: 3,
+       })
+         .addTo(map)
+-        .bindTooltip(point.name);
++        .bindTooltip(esc(point.name));
+       transferLines.push(endpoint);
+     });
+   });
+@@ -696,7 +720,8 @@
+   const point = points.find((item) => item.id === event.pointId);
+   const photos = (event.materials || [])
+     .filter(Boolean)
+-    .map((photo) => `<img src="${esc(photo)}" alt="" onerror="this.style.display='none'">`)
++    .filter(photo=>/^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(photo))
++    .map((photo,index) => `<a href="${esc(photo)}" target="_blank" rel="noopener" aria-label="Открыть материал ${index+1}"><img src="${esc(photo)}" alt="Фото или билет ${index+1}" loading="lazy"></a>`)
+     .join('');
+   const time = continuation
+     ? `Продолжение · до ${esc(event.endTime || 'конца дня')}`
+@@ -717,6 +742,7 @@
+       ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
+       ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
+       ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">${GliderIcons.icon("ticket")} Бронь / билет</a></div>` : ''}
++      ${event.ticket?.url && /^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png|pdf)$/.test(event.ticket.url) ? `<div class="event-meta"><a href="${esc(event.ticket.url)}" target="_blank" rel="noopener">${GliderIcons.icon('ticket')} ${esc(event.ticket.name||'Открыть билет')}</a></div>` : ''}
+       ${photos ? `<div class="materials">${photos}</div>` : ''}
+     </article>
+   `;
+--- a/public/index.html
++++ b/public/index.html
+@@ -7,7 +7,7 @@
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+     <link rel="stylesheet" href="/styles.css">
+   <link rel="stylesheet" href="/theme.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+-<link rel="stylesheet" href="/journal.css">
++<link rel="stylesheet" href="/journal.css"><link rel="stylesheet" href="/mvp.css">
+ <meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
+ </head>
+   <body>
+@@ -21,10 +21,12 @@
+         <div class="section-head">
+           <h2>Таймлайн поездки</h2>
+           <div class="section-actions">
++            <button id="addPointBtn" class="secondary" type="button">＋ Точка</button>
+             <button id="addBtn" class="primary" type="button">＋ Событие</button>
+             <button id="addTransferBtn" class="secondary" type="button">↔ Перемещение</button>
+           </div>
+         </div>
++        <div class="history-controls"><button id="historyToggle" class="secondary" type="button" aria-pressed="false">История поездки</button><div id="historyNavigation" hidden><button id="historyPrev" class="secondary" type="button" aria-label="Предыдущий день">←</button><span id="historyPosition" aria-live="polite"></span><button id="historyNext" class="secondary" type="button" aria-label="Следующий день">→</button></div></div>
+         <div id="days" class="days"></div>
+         <div id="timeline"></div>
+       </section>
+@@ -72,7 +74,7 @@
+             <option value="stay">Проживание</option>
+             <option value="restaurant">Ресторан</option>
+             <option value="meeting">Встреча</option>
+-            <option value="other">Другое</option>
++            <option value="walking">Прогулка</option><option value="other">Другое</option>
+           </select>
+         </label>
+         <div class="row">
+@@ -86,7 +88,7 @@
+         </label>
+         <button type="button" id="addPointFromEventBtn" class="inline-add-point">＋ Создать точку</button>
+         <label>Описание<textarea id="description" rows="3"></textarea></label>
+-        <label>Фотографии
++        <label>Фотографии и изображения билетов
+           <input type="file" id="photoFiles" accept="image/jpeg,image/png" multiple>
+         </label>
+         <div class="photo-help">Можно прикрепить несколько изображений JPG или PNG, до 10 МБ каждое.</div>
+--- a/public/map.html
++++ b/public/map.html
+@@ -8,7 +8,7 @@
+     <link rel="stylesheet" href="/styles.css">
+     <link rel="stylesheet" href="/theme.css">
+   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+-<link rel="stylesheet" href="/journal.css">
++<link rel="stylesheet" href="/journal.css"><link rel="stylesheet" href="/mvp.css">
+ <meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
+ </head>
+   <body>
+@@ -22,10 +22,12 @@
+         <div class="section-head">
+           <h2>Таймлайн поездки</h2>
+           <div class="section-actions">
++            <button id="addPointBtn" class="secondary" type="button">＋ Точка</button>
+             <button id="addBtn" class="primary" type="button">＋ Событие</button>
+             <button id="addTransferBtn" class="secondary" type="button">↔ Перемещение</button>
+           </div>
+         </div>
++        <div class="history-controls"><button id="historyToggle" class="secondary" type="button" aria-pressed="false">История поездки</button><div id="historyNavigation" hidden><button id="historyPrev" class="secondary" type="button" aria-label="Предыдущий день">←</button><span id="historyPosition" aria-live="polite"></span><button id="historyNext" class="secondary" type="button" aria-label="Следующий день">→</button></div></div>
+         <div id="days" class="days"></div>
+         <div id="timeline"></div>
+       </section>
+@@ -73,7 +75,7 @@
+             <option value="stay">Проживание</option>
+             <option value="restaurant">Ресторан</option>
+             <option value="meeting">Встреча</option>
+-            <option value="other">Другое</option>
++            <option value="walking">Прогулка</option><option value="other">Другое</option>
+           </select>
+         </label>
+         <div class="row">
+--- a/public/planner.js
++++ b/public/planner.js
+@@ -232,9 +232,9 @@
+         <input type="time" aria-label="Время начала события" value="${escapeAttr(item.startTime || item.time || '')}" data-field="startTime">
+         <input type="time" aria-label="Время окончания события" value="${escapeAttr(item.endTime || '')}" data-field="endTime">
+         <input type="text" aria-label="Событие и место" placeholder="Например, музей или прогулка по набережной" value="${escapeAttr(item.title || '')}" data-field="title">
+-        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">${item.place ? escapeAttr(item.place.name)+' — найдено на карте' : 'Без точки'}</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
++        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',walking:'Прогулка',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">${item.place ? escapeAttr(item.place.name)+' — найдено на карте' : 'Без точки'}</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
+         <div class="ticket-cell ${item.ticket ? 'has-ticket' : ''}">
+-          <input class="ticket-file-input" type="file" accept=".pdf,image/*" aria-label="Выбрать файл билета" tabindex="-1">
++          <input class="ticket-file-input" type="file" accept=".pdf,image/jpeg,image/png" aria-label="Выбрать файл билета" tabindex="-1">
+           <button class="ticket-pick" type="button" title="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}" aria-label="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 7.1-7.1a3.5 3.5 0 0 1 5 5L10 20.5a5 5 0 0 1-7.1-7.1L13 3.3"/></svg><span>${item.ticket ? '' : 'Прикрепить'}</span></button>
+           ${item.ticket ? `<button class="ticket-download" type="button" title="Скачать: ${escapeAttr(item.ticket.name)}">${escapeAttr(item.ticket.name)}</button><button class="ticket-remove" type="button" aria-label="Удалить билет" title="Удалить билет">×</button>` : ''}
+         </div>
+@@ -266,6 +266,7 @@
+         if (!file) return;
+         const note = (notes[rowDate] || [])[rowIndex];
+         if (!note) return;
++        if(!['application/pdf','image/jpeg','image/png'].includes(file.type)||file.size>10*1024*1024){alert('Выберите билет PDF, JPG или PNG размером до 10 МБ.');fileInput.value='';return;}
+         const attachmentId = createTicketId();
+         try {
+           await saveTicketFile(attachmentId, file);
+@@ -287,6 +288,7 @@
+         const attachment = notes[rowDate]?.[rowIndex]?.ticket;
+         if (!attachment) return;
+         try {
++          if(attachment.url){window.open(attachment.url,'_blank','noopener');return;}
+           const stored = await getTicketFile(attachment.id);
+           if (!stored?.file) throw new Error('Файл билета не найден. Прикрепите его ещё раз.');
+           const objectUrl = URL.createObjectURL(stored.file);
+@@ -437,6 +439,19 @@
+     persistNotes();savingNotes=true;$('#saveDayBtn').disabled=true;$('#saveDayBtn').textContent='Сохраняем…';
+     const controls=[...$('#notesRows').querySelectorAll('input,textarea,select,button'),$('#addEventBtn')];controls.forEach(el=>el.disabled=true);
+     try{
++      // Local files remain recoverable on failure. Upload before committing event metadata.
++      for(const entry of events){
++        if(!entry.ticket || entry.ticket.url)continue;
++        const stored=await getTicketFile(entry.ticket.id);
++        if(!stored?.file)throw Error('Файл билета не найден. Прикрепите его заново.');
++        const form=new FormData();form.append('attachments',stored.file,entry.ticket.name);
++        const upload=await fetch('/api/uploads',{method:'POST',body:form,signal:AbortSignal.timeout(30000)});
++        const result=await upload.json();if(!upload.ok)throw Error(result.error||'Не удалось загрузить билет');
++        entry.ticket={...entry.ticket,...result[0]};
++        const note=Object.values(notes).flat().find(note=>note.dayNoteId===entry.dayNoteId);
++        if(note)note.ticket=entry.ticket;
++        persistNotes();
++      }
+       const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/day-events',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({events}),signal:AbortSignal.timeout(15000)});
+       const result=await response.json();if(!response.ok)throw Error(result.error||(result.errors||[]).join(', ')||'Не удалось сохранить события');
+       committed=JSON.parse(JSON.stringify(notes));
+@@ -532,6 +547,15 @@
+     plannerReady=true;renderCalendar();
+     renderNotes();
+   }
++  let refreshing=false;
++  async function refreshFromServer(){
++    if(dirty||saving||savingNotes||addingPlan||refreshing||!plannerReady||rangePending||rangeStart!==savedStart||rangeEnd!==savedEnd)return;
++    refreshing=true;
++    try{await init();}catch{ /* Keep the current screen and drafts when offline. */ }
++    finally{refreshing=false;}
++  }
++  window.addEventListener('focus',refreshFromServer);
++  window.addEventListener('storage',event=>{if(event.key==='glider-trips-updated')refreshFromServer();});
+   init().catch(error => {
+     $('.intro-copy').textContent = error.message;
+     $('#addEventBtn').disabled = true;
+--- /dev/null
++++ b/public/mvp.css
+@@ -0,0 +1,6 @@
++.history-controls {display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
++#historyNavigation:not([hidden]) {display:flex;align-items:center;gap:10px}
++#historyToggle[aria-pressed="true"] {background:var(--ink,#1f3b3d);color:#fff}
++.transport-label {font:600 12px system-ui;color:#1f3b3d;background:#fff;border:1px solid #758b83;white-space:normal;max-width:220px}
++.materials a {display:inline-flex}.materials a:focus-visible {outline:3px solid #a63d2b}
++@media(max-width:600px){.history-controls{align-items:stretch;flex-direction:column}.section-actions{flex-wrap:wrap}.transport-label{max-width:140px}}
+--- /dev/null
++++ b/tests/mvp.test.js
+@@ -0,0 +1,50 @@
++const {test}=require('node:test');
++const assert=require('node:assert/strict');
++const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
++const {spawn}=require('node:child_process');
++
++test('MVP API: cover, four days, route, typed transfers, events, server tickets and restart persistence',async t=>{
++ const root=fs.mkdtempSync(path.join(os.tmpdir(),'glider-mvp-'));
++ for(const folder of ['server','data','public'])fs.mkdirSync(path.join(root,folder));
++ for(const file of ['index.js','plan-parser.js'])fs.copyFileSync(path.join(__dirname,'../server',file),path.join(root,'server',file));
++ fs.copyFileSync(path.join(__dirname,'../public/plan-schedule.js'),path.join(root,'public/plan-schedule.js'));
++ fs.writeFileSync(path.join(root,'data/db.json'),JSON.stringify({trips:[],points:[],events:[],transfers:[]}));
++ let child,base;
++ async function start(){
++  const script=`const http=require('http'),listen=http.Server.prototype.listen;http.Server.prototype.listen=function(){return listen.call(this,0,'127.0.0.1',()=>console.log('PORT:'+this.address().port))};require(${JSON.stringify(path.join(root,'server/index.js'))});`;
++  child=spawn(process.execPath,['-e',script],{env:{...process.env,LLM_API_KEY:'',LLM_BASE_URL:''},stdio:['ignore','pipe','pipe']});
++  base=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('startup timeout')),5000);child.on('error',reject);child.stdout.on('data',d=>{const m=String(d).match(/PORT:(\d+)/);if(m){clearTimeout(timer);resolve('http://127.0.0.1:'+m[1]);}});});
++ }
++ t.after(()=>{child?.kill();fs.rmSync(root,{recursive:true,force:true});});
++ await start();
++ const request=async(url,body,method='POST',expected=200)=>{const res=await fetch(base+url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});assert.equal(res.status,expected,await res.clone().text());return res.status===204?null:res.json();};
++ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
++ async function upload(bytes,type,name,field='photos',status=201){const form=new FormData();form.append(field,new Blob([bytes],{type}),name);const res=await fetch(base+'/api/uploads',{method:'POST',body:form});assert.equal(res.status,status);return res.json();}
++ const [cover]=await upload(png,'image/png','cover.png');
++ const trip=await request('/api/trips',{title:'СПб → Казань',destination:'Казань',city:{id:'local-kazan'},month:7,year:2026,coverUrl:cover.url},'POST',201);
++ await request('/api/trips/'+trip.id,{startDate:'2026-07-12',endDate:'2026-07-15'},'PATCH');
++ const scope='?tripId='+trip.id;
++ const points=[];
++ for(const point of [{name:'Санкт-Петербург',lat:59.93,lng:30.31},{name:'Казань аэропорт',lat:55.60,lng:49.28},{name:'Отель',lat:55.79,lng:49.12},{name:'Казанский Кремль',lat:55.80,lng:49.10}])points.push(await request('/api/points'+scope,point,'POST',201));
++ for(const [index,mode] of ['plane','car'].entries())await request('/api/transfers'+scope,{fromPointId:points[index].id,toPointId:points[index+1].id,mode,date:'2026-07-12',endDate:'2026-07-12',startTime:index?'12:00':'09:00',endTime:index?'13:00':'11:00'},'POST',201);
++ const [photo]=await upload(png,'image/png','excursion.png');
++ const [ticket]=await upload(Buffer.from('%PDF-1.4\n%%EOF'),'application/pdf','ticket.pdf','attachments');
++ await upload(Buffer.from('<script>alert(1)</script>'),'application/pdf','fake.pdf','attachments',400);
++ await upload(Buffer.from('%PDF-1.4'),'application/pdf','cover.pdf','photos',400);
++ const excursion={title:'Экскурсия',date:'2026-07-13',endDate:'2026-07-13',startTime:'14:00',type:'excursion',pointId:points[3].id,materials:[photo.url],ticket};
++ const created=await request('/api/events'+scope,excursion,'POST',201);
++ for(const [index,type] of ['stay','walking','restaurant'].entries())await request('/api/events'+scope,{title:type,type,date:'2026-07-12',startTime:['13:00','15:00','19:00'][index],pointId:points[2].id},'POST',201);
++ await request('/api/events/'+created.id+scope,{...excursion,startTime:'08:00'},'PUT');
++ const calendarEvent={dayNoteId:'calendar',title:'Билет из календаря',type:'walking',date:'2026-07-14',startTime:'09:00',ticket};
++ await request('/api/trips/'+trip.id+'/day-events',{events:[calendarEvent]},'PUT');
++ const bad=await fetch(base+'/api/trips/'+trip.id+'/day-events',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({events:[{...calendarEvent,ticket:{url:'/uploads/missing.pdf'}}]})});assert.equal(bad.status,400);
++ const [dbTrip]=await request('/api/trips',null,'GET');assert.equal(dbTrip.endDate,'2026-07-15');assert.equal(dbTrip.coverUrl,cover.url);
++ assert.equal((await request('/api/events'+scope+'&date=2026-07-13',null,'GET')).length,1);
++ assert.equal((await request('/api/points?tripId=another',null,'GET')).length,0);
++ assert.deepEqual((await request('/api/transfers'+scope,null,'GET')).map(t=>t.mode),['plane','car']);
++ await new Promise(resolve=>{child.once('exit',resolve);child.kill();});await start();
++ const events=await request('/api/events'+scope,null,'GET');assert.equal(events.length,5);assert.equal(events.find(e=>e.id===created.id).startTime,'08:00');assert.equal(events.find(e=>e.dayNoteId==='calendar').ticket.url,ticket.url);
++ for(const [file,type] of [[cover,'image/png'],[photo,'image/png'],[ticket,'application/pdf']]){const res=await fetch(base+file.url);assert.equal(res.status,200);assert.equal(res.headers.get('content-type'),type);assert.ok((await res.arrayBuffer()).byteLength>0);}
++ assert.equal((await request('/api/points'+scope,null,'GET')).length,4);
++ await request('/api/trips/'+trip.id,null,'DELETE');assert.equal((await request('/api/events'+scope,null,'GET')).length,0);
++});
+--- /dev/null
++++ b/changes/mvp-audit.md
+@@ -0,0 +1,79 @@
++# Аудит и дополнение MVP Traveler's Glider
++
++Аудит выполнен до изменений. Рабочее приложение находится в `fly/`: Node HTTP API, JSON-база `data/db.json`, серверные файлы `data/uploads`, vanilla JS и Leaflet. В родительском каталоге есть другая копия приложения; она не менялась.
++
++## Исходный аудит
++
++| Критерий | Статус до изменений | Что требовалось добавить |
++|---|---|---|
++| 1. Четыре дня, СПб → Казань | есть | Проверить сценарий; СПб задаётся начальной точкой маршрута |
++| 2. Название, даты, обложка | есть | Проверить существующие создание, загрузку и подтверждение дат |
++| 3. Начальная точка и места назначения | частично | Прямая кнопка создания точки вне формы события |
++| 4. Точки на карте | есть | Проверить отображение |
++| 5. Перелёт и автомобиль | есть | Проверить существующие CRUD и типы |
++| 6. Последовательный маршрут с обозначением транспорта | частично | Разные стили линий, подписи и номера участков |
++| 7. Заселение, экскурсия, прогулка, ужин | есть | Для удобства добавить явный тип «Прогулка» вместо «Другое» |
++| 8. Хронологический таймлайн событий и перемещений | есть | Проверить существующую сортировку |
++| 9. Точки и события выбранного дня | частично | Фильтровать связанные точки карты |
++| 10. Выбор события выделяет место | есть | Сохранить и проверить существующую связь |
++| 11. Фото и изображение билета | частично | Фото уже на сервере; билет календаря требовал серверной загрузки |
++| 12. Просмотр материалов экскурсии | частично | Открытие полного изображения и серверного билета из карточки |
++| 13. Изменение времени и пересортировка | есть | Проверить после сохранения |
++| 14. Сохранность после перезагрузки | частично | Билеты календаря хранились только в IndexedDB |
++| 15. Последовательная история поездки | отсутствует | Режим истории с предыдущим/следующим днём и счётчиком |
++
++| Обязательное условие | Статус до изменений | Что требовалось добавить |
++|---|---|---|
++| Создание поездок через backend | есть | Сохранить существующее API |
++| Геоточки, перемещения и события через backend | есть | Сохранить CRUD |
++| Маршрут, таймлайн, переключение дней | частично | Фильтрация карты и история |
++| Связь карты и таймлайна | есть | Проверить после фильтрации |
++| Фотографии и билеты | частично | Серверные билеты календаря и открытие материалов |
++| Постоянное хранение данных и файлов | частично | Загрузка билета до фиксации события |
++| Согласованность представлений | частично | Уведомления о мутациях карты и обновление чистого календаря |
++| Основная работа с данными на backend | есть | Расширить существующий файловый API; локально оставить черновики |
++
++## Выполненные изменения
++
++- `server/index.js`: существующий `/api/uploads` принимает поле `attachments` для JPG/PNG/PDF. PDF допускается только в этом поле, фотографии и обложки по-прежнему используют `photos`. Проверяются сигнатура и MIME, сохраняется ограничение 10 МБ на файл и 20 МБ на запрос. Ответ дополнен `name`, `type`, `size`; существующее `url` сохранено. Файлы выдаются сервером с `nosniff`. При сохранении события проверяется существование `ticket.url`. Тип `walking` разрешён пакетному сохранению календаря.
++- `public/planner.js`: билет сначала загружается на сервер, затем `ticket.url` записывается вместе с событием. Успешно загруженный файл не отправляется повторно при повторном сохранении. При ошибке текст и локальный файл остаются черновиком. Сохранённый билет открывается по серверной ссылке. Чистый календарь обновляется по уведомлениям других вкладок и при возврате фокуса; незавершённый выбор дат и грязные черновики не затираются. В редактор добавлена «Прогулка».
++- `public/app.js`: прямая кнопка точки; связанные точки фильтруются по выбранному дню, ещё не привязанные точки остаются видны для редактирования. В истории показываются только точки дня. Перелёт — пунктир, авто — сплошная линия; подписи содержат вид транспорта и хронологический номер участка всей поездки. Добавлены история, переходы по дням и подстройка обзора карты. Фото и изображения билетов открываются в полном размере в новой вкладке; серверный билет также доступен из карточки. Подтверждённые API-изменения уведомляют другие представления.
++- `public/index.html`, `public/map.html`: одинаковые элементы управления обоих существующих экранов карты, тип события, уточнение подписи загрузки.
++- `public/mvp.css`: оформление новых элементов, мобильная компоновка.
++- `tests/mvp.test.js`: изолированный интеграционный сценарий API с реальными файлами и перезапуском сервера.
++
++Новых эндпоинтов нет. В уже существующей структуре `ticket` добавляется `url`; поездки, точки, перемещения и события сохраняют прежние модели. Старые локальные билеты загружаются при следующем сохранении календаря, если их файл ещё доступен на этом устройстве. Если файл был удалён из браузера до миграции, требуется прикрепить его повторно.
++
++Карта показывает схематические линии между точками, а не рассчитанные автомобильные дороги. Начальный город — обычная начальная точка, отдельная модель «города отправления» не вводилась. История переключается вручную кнопками и вкладками дней, без автоматического проигрывания.
++
++## Проверка
++
++`npm test`: 13 тестов прошли. Новый тест проверяет создание поездки с обложкой и четырьмя днями, четыре точки, перелёт/авто, четыре типа событий, изменение времени, фотографии, PDF-билет календаря, отклонение поддельного PDF, изоляцию поездок, сохранность после перезапуска и удаление поездки.
++
++Проверка Chrome/Playwright на отдельной временной базе с настоящим API прошла: создание точки через UI, стили линий, выбор события, фильтрация карты, история четырёх дней и её границы, изменение времени, загрузка изображения, ссылки материалов, загрузка PDF из календаря, ошибка загрузки и повторное сохранение, перезагрузка, обновление календаря после редактирования события в другой вкладке, мобильная ширина 390 px без горизонтального переполнения и ошибок JS. Внешние тайлы, CDN и достопримечательности были изолированы от сети; их внешняя доступность этим прогоном не проверялась.
++
++Прежний браузерный регрессионный сценарий календаря также прошёл: автораспределение с занятыми слотами, дата/время из текста, отсутствие найденного места, перенос через список и drag-and-drop, синхронизация черновика с картой, перераспределение, offline fallback, сохранение, перезагрузка, однодневный режим, подтверждение дат и открытие дня.
++
++Пользовательская база, загруженные файлы и конфигурация с секретами не изменялись тестами и не входят в патч.
++
++## Ручной сценарий демонстрации
++
++1. На главной выберите Казань из подсказок. Начальную точку СПб добавим на карте на шаге 3.
++2. Задайте название «СПб → Казань», обложку JPG/PNG, создайте поездку. На календаре выделите четыре последовательных дня и подтвердите даты. Вернитесь на главную: проверьте обложку, название и даты.
++3. Откройте карту из календаря. Через «＋ Точка» добавьте Санкт-Петербург (59.9343, 30.3351), аэропорт Казани (55.6062, 49.2787), отель (55.7900, 49.1200), Казанский Кремль (55.8000, 49.1050). Можно выбирать координаты кликом по карте.
++4. Убедитесь, что созданные точки появились и доступны в списках формы события/перемещения.
++5. Добавьте перелёт СПб → аэропорт на первый день, 09:00–11:00; затем авто аэропорт → отель, 12:00–13:00.
++6. Проверьте направление по подписям «откуда → куда», номера 1/2, пунктир перелёта и сплошную линию авто; нажмите участки и проверьте выделение перемещений.
++7. Создайте заселение («Проживание», первый день 13:00, отель), экскурсию (второй день 14:00, Кремль), прогулку (третий день 10:00), ужин («Ресторан», четвёртый день 19:00). Привяжите прогулку/ужин к нужным точкам.
++8. На первом дне проверьте порядок: перелёт → авто → заселение.
++9. Переключайте дни: события и связанные точки должны соответствовать дню. Непривязанные точки доступны в обычном режиме редактирования; в истории они скрыты.
++10. На втором дне нажмите экскурсию: карта приближает Кремль и выделяет маркер. Нажмите маркер: экскурсия выделяется в таймлайне.
++11. В редакторе экскурсии через «Фотографии и изображения билетов» прикрепите фото и изображение билета JPG/PNG, сохраните. Дополнительно можно прикрепить PDF в календаре и нажать «Сохранить и перейти к карте».
++12. В карточке экскурсии откройте каждое изображение в полном размере. Для PDF проверьте отдельную ссылку билета; файлы должны открываться с `/uploads/...`.
++13. Добавьте ещё одно событие второго дня на 12:00. Перенесите экскурсию с 14:00 на 11:00: после сохранения она должна оказаться перед ним. Откройте календарь в соседней вкладке и проверьте обновление времени без перезагрузки.
++14. Перезагрузите страницу и затем перезапустите `npm start`: точки, перемещения, события, обложка и вложения должны остаться доступны. Для ошибки загрузки: в DevTools заблокируйте `/api/uploads`, прикрепите новый билет в календаре и сохраните. Проверьте сообщение об ошибке и сохранность черновика; разблокируйте адрес и повторите сохранение.
++15. Включите «История поездки». Последовательно пройдите четыре дня кнопками ←/→; проверьте счётчик, карту дня и пустые состояния. На первом/последнем дне соответствующая кнопка отключена. Повторите на мобильной ширине и с `prefers-reduced-motion`.
++
++## Патч
++
++`changes/mvp-completion.patch` содержит только дополнения этого аудита поверх уже существовавших изменений календарного планирования. База и пользовательские файлы исключены. Ранее подготовленный `calendar-plans.patch` остаётся отдельным артефактом предыдущего этапа.

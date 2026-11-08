@@ -2,9 +2,9 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const {spawn}=require('node:child_process');
 test('parse → save → route point, repeated save, invalid batch rollback; isolated fixture database',async(t)=>{
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'glider-plan-test-'));fs.mkdirSync(path.join(root,'server'));fs.mkdirSync(path.join(root,'data'));
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'glider-plan-test-'));fs.mkdirSync(path.join(root,'server'));fs.mkdirSync(path.join(root,'data'));fs.mkdirSync(path.join(root,'public'));fs.copyFileSync(path.join(__dirname,'..','public','plan-schedule.js'),path.join(root,'public','plan-schedule.js'));
  for(const file of ['index.js','plan-parser.js'])fs.copyFileSync(path.join(__dirname,'..','server',file),path.join(root,'server',file));
- fs.writeFileSync(path.join(root,'data','db.json'),JSON.stringify({trips:[{id:'trip',title:'Казань',city:{name:'Казань',latitude:55.79,longitude:49.12}}],points:[],events:[{id:'unmanaged',tripId:'trip',title:'Ранее созданное событие',date:'2026-07-01',startTime:'09:00'}],transfers:[]}));
+ fs.writeFileSync(path.join(root,'data','db.json'),JSON.stringify({trips:[{id:'trip',title:'Казань',city:{name:'Казань',latitude:55.79,longitude:49.12}}],points:[],events:[{id:'unmanaged',tripId:'trip',title:'Ранее созданное событие',materials:['/uploads/retained.jpg'],date:'2026-07-01',startTime:'09:00'}],transfers:[]}));
  const code=`const http=require('http');const listen=http.Server.prototype.listen;http.Server.prototype.listen=function(){return listen.call(this,0,'127.0.0.1',()=>console.log('TEST_PORT:'+this.address().port))};global.fetch=async()=>({ok:true,json:async()=>[{lat:'55.799',lon:'49.106',display_name:'Казанский кремль'}]});require(${JSON.stringify(path.join(root,'server','index.js'))});`;
  const child=spawn(process.execPath,['-e',code],{env:{...process.env,LLM_API_KEY:'',LLM_BASE_URL:'',LLM_MODEL:''},stdio:['ignore','pipe','pipe']});
  t.after(()=>{child.kill();fs.rmSync(root,{recursive:true,force:true});});
@@ -16,6 +16,11 @@ test('parse → save → route point, repeated save, invalid batch rollback; iso
  await request('/api/trips/trip/day-events',{events:[entry]},'PUT');
  let db=JSON.parse(fs.readFileSync(path.join(root,'data','db.json')));assert.equal(db.points.length,1);assert.equal(db.events.length,2);assert.ok(db.events.some(e=>e.id==='unmanaged'));assert.equal(db.points[0].id,result.events[0].pointId);
  const snapshot=JSON.stringify(db);const invalid=await request('/api/trips/trip/day-events',{events:[{...entry,place:{name:'Other',lat:40,lng:30}}, {...entry,dayNoteId:'invalid',place:{name:'Invalid',lat:999,lng:0}}]},'PUT');assert.equal(invalid.status,400);assert.equal(JSON.stringify(JSON.parse(fs.readFileSync(path.join(root,'data','db.json')))),snapshot);
+ const moved={dayNoteId:'imported',originalEventId:'unmanaged',title:'Перенесённая экскурсия',type:'excursion',date:'2026-07-13',startTime:'15:00',schedule:{automatic:true,dateExplicit:true,timeExplicit:true}};
+ const imported=await request('/api/trips/trip/day-events',{events:[entry,moved]},'PUT');assert.equal(imported.status,200);
+ db=JSON.parse(fs.readFileSync(path.join(root,'data','db.json')));const updated=db.events.find(e=>e.id==='unmanaged');assert.equal(updated.date,'2026-07-13');assert.deepEqual(updated.materials,['/uploads/retained.jpg']);assert.equal(updated.schedule.dateExplicit,true);assert.equal(updated.originalEventId,undefined);assert.equal(db.events.length,2);
+ await request('/api/trips/trip/day-events',{events:[entry,moved]},'PUT');db=JSON.parse(fs.readFileSync(path.join(root,'data','db.json')));assert.equal(db.events.length,2);assert.deepEqual(db.events.find(e=>e.id==='unmanaged').materials,['/uploads/retained.jpg']);
+ const invalidImport=await request('/api/trips/trip/day-events',{events:[entry,{...moved,originalEventId:'missing'}]},'PUT');assert.equal(invalidImport.status,400);
  assert.equal((await request('/api/trips/missing/parse-plans',{text:'Музей',date:'2026-07-12'})).status,404);
  assert.equal((await request('/api/trips/trip/parse-plans',{text:'Музей',date:'bad'})).status,400);
  assert.equal((await request('/.env',null,'GET')).status,404);

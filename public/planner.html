@@ -45,24 +45,26 @@
             <button id="nextMonth" class="month-button" type="button" aria-label="Следующий месяц">›</button>
           </div>
         </div>
-        <p class="range-instruction">Выберите начало и конец поездки. После сохранения нажмите «Изменить диапазон», чтобы выбрать новые даты; клики по дням переключают заметки.</p>
+        <p class="range-instruction">Выберите начало и конец, затем нажмите «Подтвердить даты». Для однодневной поездки включите «Один день». После подтверждения клики по дням открывают планы.</p>
         <div id="rangePrompt" class="range-prompt" hidden>
           <div><strong>Сначала выберите даты поездки</strong><small id="rangePromptMessage">Нажмите на дату начала, затем на дату окончания.</small></div>
           <button id="startRangeBtn" class="secondary" type="button">Выбрать диапазон</button>
         </div>
+        <div class="schedule-modes" role="group" aria-label="Режим выбора дат"><button id="rangeModeBtn" class="today-button" type="button" aria-pressed="true">Диапазон</button><button id="singleModeBtn" class="today-button" type="button" aria-pressed="false">Один день</button></div>
         <div class="weekdays" aria-hidden="true"><span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span></div>
         <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь" tabindex="-1"></div>
-        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Изменить диапазон</button></div>
+        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Изменить диапазон</button><button id="confirmDatesBtn" class="add-button" type="button" disabled>Подтвердить даты</button><button id="openSelectedDayBtn" class="today-button" type="button">Перейти в этот день</button><button id="clearDatesBtn" class="today-button" type="button">Сбросить даты</button></div>
       </section>
 
       <section class="plan-text-card" aria-labelledby="planTextTitle">
         <p class="eyebrow">ИЗ МЫСЛЕЙ — В МАРШРУТ</p><h2 id="planTextTitle">Ваши планы</h2>
-        <label for="plansText">Напишите места, даты и время — каждый план с новой строки</label>
-        <textarea id="plansText" maxlength="10000" rows="4" placeholder="12 июля в 10:00 посетить Казанский кремль&#10;После обеда сходить в музей"></textarea>
-        <p class="muted">Текст передаётся сервису разбора планов. Не включайте паспортные и платёжные данные. Предложенные места и время можно исправить перед сохранением.</p>
-        <button id="parsePlansBtn" class="add-button" type="button">Разобрать планы</button>
+        <label for="plansText">Что хотите сделать? Дату и время можно не указывать</label>
+        <input id="plansText" type="text" maxlength="1000" placeholder="Сходить в музей, ужин в кафе…" autocomplete="off">
+        <p class="muted">Текст передаётся сервису разбора планов. Не включайте паспортные и платёжные данные. Распределение идёт по подтверждённым датам. Места и время можно исправить перед сохранением.</p>
+        <button id="parsePlansBtn" class="add-button" type="button">Добавить план</button>
         <p id="plansStatus" role="status" aria-live="polite"></p>
       </section>
+      <section class="trip-overview" aria-labelledby="overviewTitle"><div class="overview-heading"><div><p class="eyebrow">ВСЁ ПУТЕШЕСТВИЕ</p><h2 id="overviewTitle">Планы по дням</h2></div><button id="redistributeBtn" class="today-button" type="button">Перераспределить</button></div><p class="muted">Свободные слоты: утро, день и вечер. Планы можно перетащить на день календаря или перенести через список.</p><div id="tripOverview"></div><p id="scheduleStatus" role="status" aria-live="polite"></p></section>
       <section class="notes-section" aria-labelledby="notesTitle">
         <div class="notes-heading">
           <div><p class="eyebrow">ВАШ ПЛАН</p><h2 id="notesTitle">Заметки на день</h2><p id="selectedDateLabel" class="selected-date-label"></p></div>
@@ -87,6 +89,7 @@
       <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
     </main>
     <script src="/journal-icons.js"></script>
+<script src="/plan-schedule.js"></script>
 <script src="/planner.js"></script>
   <script src="/journal.js"></script>
 </body>

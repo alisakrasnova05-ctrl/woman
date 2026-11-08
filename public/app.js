@@ -15,6 +15,8 @@ let resumeEventAfterPoint = false;
 let eventMaterials = [];
 let pendingPhotos = [];
 let photoPreviewUrls = [];
+let savedPoints=[],savedEvents=[];
+let historyMode = false;
 let eventTicket = null;
 let pendingTicket = null;
 let ticketPreviewUrl = null;
@@ -39,6 +41,7 @@ const eventIcons = {
   stay: GliderIcons.icon("stay"),
   restaurant: GliderIcons.icon("restaurant"),
   meeting: GliderIcons.icon("meeting"),
+  walking: GliderIcons.icon("walking"),
   other: GliderIcons.icon("other"),
 };
 
@@ -131,16 +134,41 @@ async function api(endpoint, options) {
     const error = await response.json();
     throw Error((error.errors || [error.error]).join(', '));
   }
+  if(options?.method && options.method!=='GET'){try{localStorage.setItem('glider-trips-updated',JSON.stringify({tripId:activeTripId,at:Date.now()}));}catch{}}
   return response.status === 204 ? null : response.json();
 }
 
 async function loadData() {
-  [points, events, transfers] = await Promise.all([
+  [savedPoints, savedEvents, transfers] = await Promise.all([
     api('/api/points'),
     api('/api/events'),
     api('/api/transfers'),
   ]);
+  applyCalendarDrafts();
 }
+function applyCalendarDrafts(){
+  let draft=null,committed=null;
+  try{draft=JSON.parse(localStorage.getItem('travelhub-day-notes:'+activeTripId));committed=JSON.parse(localStorage.getItem('travelhub-day-notes-committed:'+activeTripId));}catch{}
+  const preview=MapDrafts.overlay(savedPoints,savedEvents,draft,committed,activeTripId);points=preview.points;events=preview.events;
+  let hint=document.getElementById('draftPreviewHint');
+  if(!hint){hint=document.createElement('p');hint.id='draftPreviewHint';hint.className='geo-status';hint.setAttribute('role','status');$('#timeline').before(hint);}
+  hint.hidden=!preview.active;hint.textContent=preview.active?'Предпросмотр черновика календаря. Для фиксации нажмите «Сохранить» в календаре.':'';
+}
+let refreshTimer;
+async function refreshCalendarPlans(){
+  if(!mapReady)return;
+  const previous=events.find(e=>itemKey('event',e.id)===selectedKey);
+  try{await loadData();}catch{applyCalendarDrafts();}
+  const current=events.find(e=>itemKey('event',e.id)===selectedKey || (previous?.dayNoteId && e.dayNoteId===previous.dayNoteId));
+  if(current){selectedKey=itemKey('event',current.id);lastPlace={kind:'event',id:current.id};}
+  if(current)selectedDate=current.date;
+  fillPointSelects();render();
+}
+window.addEventListener('storage',event=>{
+  if(['travelhub-day-notes:'+activeTripId,'travelhub-day-notes-committed:'+activeTripId,'glider-trips-updated'].includes(event.key)){clearTimeout(refreshTimer);refreshTimer=setTimeout(refreshCalendarPlans,100);}
+});
+window.addEventListener('pageshow',refreshCalendarPlans);
+
 
 async function init() {
   const trips = await api('/api/trips');
@@ -170,6 +198,7 @@ async function init() {
 
 function fillPointSelects() {
   const pointOptions = points
+    .filter(point=>!point._draft)
     .map((point) => `<option value="${esc(point.id)}">${esc(point.name)}</option>`)
     .join('');
 
@@ -206,7 +235,23 @@ function dates() {
   return [...dateSet].filter(Boolean).sort();
 }
 
+function changeHistoryDay(offset) {
+  const list=dates(), index=list.indexOf(selectedDate);
+  selectedDate=list[Math.max(0,Math.min(list.length-1,index+offset))];
+  selectedKey=null;lastPlace=null;render();
+  const locations=Object.values(markers).map(marker=>marker.getLatLng());
+  if(locations.length)map.flyToBounds(L.latLngBounds(locations),{...motionOptions(),padding:[35,35],maxZoom:15});
+  saveMapState();
+}
+$('#addPointBtn').onclick=()=>openPointForm();
+$('#historyToggle').onclick=()=>{historyMode=!historyMode;$('#historyToggle').setAttribute('aria-pressed',String(historyMode));render();if(historyMode)changeHistoryDay(0);};
+$('#historyPrev').onclick=()=>changeHistoryDay(-1);
+$('#historyNext').onclick=()=>changeHistoryDay(1);
 function renderDays() {
+  const list=dates(),index=list.indexOf(selectedDate);
+  $('#historyNavigation').hidden=!historyMode;
+  $('#historyPosition').textContent=`День ${index+1} из ${list.length} · ${new Date(selectedDate+'T12:00:00').toLocaleDateString('ru-RU')}`;
+  $('#historyPrev').disabled=index<=0;$('#historyNext').disabled=index>=list.length-1;
   $('#days').innerHTML = dates()
     .map((date) => `
       <button class="day ${date === selectedDate ? 'active' : ''}" data-date="${date}">
@@ -219,7 +264,7 @@ function renderDays() {
     button.onclick = () => {
       selectedDate = button.dataset.date;
       selectedKey = null;
-      render();
+      lastPlace=null;render();if(historyMode)changeHistoryDay(0);saveMapState();
     };
   });
 }
@@ -306,6 +351,7 @@ function render() {
     };
   });
 
+  document.querySelectorAll('.materials a,.event-meta a,.ticket-image').forEach(link=>link.addEventListener('click',event=>event.stopPropagation()));
   drawMap(items);
 }
 
@@ -343,7 +389,9 @@ function drawMap(items) {
   markers = {};
   transferLines = [];
 
-  points.forEach((point) => {
+  const dayPoints=new Set(items.flatMap(({kind,item})=>kind==='event'?[item.pointId]:[item.fromPointId,item.toPointId]));
+  const referenced=new Set([...events.map(e=>e.pointId),...transfers.flatMap(t=>[t.fromPointId,t.toPointId])]);
+  points.filter(point=>dayPoints.has(point.id)||(!historyMode&&!referenced.has(point.id))).forEach((point) => {
     const key = `point:${point.id}`;
     const marker = L.marker([point.lat, point.lng], {icon:L.divIcon({className:"journal-marker",html:GliderIcons.icon(events.find(e=>e.pointId===point.id)?.type || "pin"),iconSize:[34,34],iconAnchor:[17,30]})})
       .addTo(map)
@@ -373,12 +421,14 @@ function drawMap(items) {
         color: meta.color,
         weight: selected ? 7 : 4,
         opacity: selected ? 1 : 0.8,
-        dashArray: '9 7',
+        dashArray: item.mode==='plane'?'12 9':item.mode==='car'?null:'4 6',
         className: 'journal-route',
       },
     )
       .addTo(map)
       .bindPopup(`<b>${esc(from.name)} → ${esc(to.name)}</b><br>${meta.icon} ${esc(meta.label)} · ${esc(item.startTime)} — ${esc(item.endTime)}`);
+    const order=[...transfers].sort((a,b)=>`${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`)).findIndex(transfer=>transfer.id===item.id)+1;
+    line.bindTooltip(`${order}. ${esc(meta.label)}: ${esc(from.name)} → ${esc(to.name)}`,{permanent:true,direction:'center',className:'transport-label'});
     line.on('click', () => selectItem('transfer', item.id, false));
     transferLines.push(line);
 
@@ -391,13 +441,14 @@ function drawMap(items) {
         weight: 3,
       })
         .addTo(map)
-        .bindTooltip(point.name);
+        .bindTooltip(esc(point.name));
       transferLines.push(endpoint);
     });
   });
 }
 
 function pointPopup(point) {
+  if(point._draft)return `<div class="point-popup"><b>${esc(point.name)}</b><p>Черновик календаря — сохраните планы, чтобы редактировать точку здесь.</p></div>`;
   return `
     <div class="point-popup">
       <b>${esc(point.name)}</b>
@@ -698,7 +749,8 @@ function featureCard(event, continuation = false) {
   const point = points.find((item) => item.id === event.pointId);
   const photos = (event.materials || [])
     .filter(Boolean)
-    .map((photo) => `<img src="${esc(photo)}" alt="" onerror="this.style.display='none'">`)
+    .filter(photo=>/^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(photo))
+    .map((photo,index) => `<a href="${esc(photo)}" target="_blank" rel="noopener" aria-label="Открыть материал ${index+1}"><img src="${esc(photo)}" alt="Фото или билет ${index+1}" loading="lazy"></a>`)
     .join('');
   const time = continuation
     ? `Продолжение · до ${esc(event.endTime || 'конца дня')}`
@@ -709,18 +761,19 @@ function featureCard(event, continuation = false) {
     : '';
   return `
     <article class="timeline-item event ${selectedKey === itemKey('event', event.id) ? 'selected' : ''}" data-kind="event" data-id="${esc(event.id)}">
-      <div class="event-actions">
+      <div class="event-actions" ${event._draft?'hidden style="display:none"':''}>
         <button class="icon" type="button" data-edit-event="${esc(event.id)}" aria-label="Редактировать">${GliderIcons.icon("edit")}</button>
         <button class="icon" type="button" data-delete-event="${esc(event.id)}">×</button>
       </div>
       <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${eventIcons[event.type] || GliderIcons.icon("other")}</span><span class="event-time-copy">${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</span></div>
-      <div class="event-title">${esc(event.title)}</div>
+      <div class="event-title">${esc(event.title)}${event._draft?' <small class="draft-label">Черновик</small>':''}</div>
       <div class="event-meta">${point ? `${GliderIcons.icon("pin")} ${esc(point.name)}` : 'Без геоточки'}</div>
       ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
       ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
       ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">${GliderIcons.icon("ticket")} Бронь / билет</a></div>` : ''}
+      ${event.ticket?.url && /^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png|pdf)$/.test(event.ticket.url) ? `<div class="event-meta"><a href="${esc(event.ticket.url)}" target="_blank" rel="noopener">${GliderIcons.icon('ticket')} ${esc(event.ticket.name||'Открыть билет')}</a></div>` : ''}
       ${photos ? `<div class="materials">${photos}</div>` : ''}
-      ${event.ticket?.url ? `<a class="ticket-image" href="${esc(event.ticket.url)}" target="_blank" rel="noopener" title="Открыть изображение входного билета"><img src="${esc(event.ticket.url)}" alt="${esc(event.ticket.name || 'Изображение входного билета')}" onerror="this.style.display='none'"><span>Входной билет</span></a>` : ''}
+      ${event.ticket?.url && /^\/uploads\/[A-Za-z0-9_-]+\.(jpg|png)$/.test(event.ticket.url) ? `<a class="ticket-image" href="${esc(event.ticket.url)}" target="_blank" rel="noopener" title="Открыть изображение входного билета"><img src="${esc(event.ticket.url)}" alt="${esc(event.ticket.name || 'Изображение входного билета')}"><span>Входной билет</span></a>` : ''}
     </article>
   `;
 }
@@ -780,7 +833,7 @@ function renderTicketPreview() {
     const item = document.createElement('div');
     item.className = 'photo-preview-item';
     const image = document.createElement('img');
-    if (ticket.url) {
+    if (ticket.url && (pendingTicket || /\.(jpg|png)$/.test(ticket.url))) {
       image.src = ticket.url;
       image.alt = ticket.name;
       item.append(image);
@@ -796,7 +849,7 @@ function renderTicketPreview() {
       else eventTicket = null;
       renderTicketPreview();
     });
-    item.append(image, remove);
+    item.append(remove);
     preview.append(item);
   }
 }

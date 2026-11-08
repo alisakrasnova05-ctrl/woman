@@ -14,7 +14,8 @@
   let rangeStart = load('travelhub-trip-start', '');
   let rangeEnd = load('travelhub-trip-end', '');
   let notes = load('travelhub-day-notes', {});
-  let tripEvents = [], tripPoints = [];
+  let tripEvents = [], tripPoints = [], tripTransfers = [];
+  let addingPlan=false, plannerReady=false, singleDayMode=false;
   let ticketDbPromise;
   const draftKey=storageKey('travelhub-day-notes');
   const committedKey=storageKey('travelhub-day-notes-committed');
@@ -33,7 +34,7 @@
   let savedStart = rangeStart, savedEnd = rangeEnd;
   let saving = false, saveError = '';
   async function saveRange(start, end) {
-    if (saving) return;
+    if (saving || savingNotes || addingPlan) return;
     saving = true; saveError = ''; renderCalendar();
     try {
       if (tripId) {
@@ -52,7 +53,9 @@
     } catch(error) { saveError = error.message; }
     finally {
       rangeStart = savedStart; rangeEnd = savedEnd;
-      rangePending = false; saving = false; renderCalendar();
+      rangePending = false; saving = false;
+      if(!saveError)rangeSelecting=!(savedStart&&savedEnd);
+      renderCalendar();renderNotes();
       if (saveError && !savedStart && !savedEnd) rangeSelecting = true;
     }
   }
@@ -64,11 +67,18 @@
     const count = rangeStart && rangeEnd ? Math.round((parseDate(rangeEnd)-parseDate(rangeStart))/86400000)+1 : 0;
     const formatDay = key => parseDate(key).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
     const rangeComplete = rangeStart && rangeEnd && rangeEnd >= rangeStart;
-    $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeComplete ? `Поездка: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
+    $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeComplete ? `${rangeStart===savedStart&&rangeEnd===savedEnd?'Поездка':'Выбрано'}: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
     $('#rangePrompt').hidden = !!rangeComplete;
     $('#rangePromptMessage').textContent = rangePending ? 'Начало выбрано. Теперь укажите дату окончания.' : 'Нажмите дату начала, затем дату окончания поездки.';
     $('#startRangeBtn').textContent = rangePending ? 'Выбрать окончание' : 'Выбрать диапазон';
-    $('#resetDatesBtn').disabled = saving || (!savedStart && !rangeStart);
+    const busy=saving||savingNotes||addingPlan;
+    for(const id of ['rangeModeBtn','singleModeBtn','startRangeBtn','resetDatesBtn'])$('#'+id).disabled=busy;
+    $('#confirmDatesBtn').disabled=busy||!rangeComplete||(rangeStart===savedStart&&rangeEnd===savedEnd);
+    $('#openSelectedDayBtn').disabled=busy||(!selected&&!savedStart);
+    $('#parsePlansBtn').disabled=!plannerReady||busy||!savedStart||!savedEnd;
+    $('#clearDatesBtn').disabled=busy||!savedStart;
+    $('#rangeModeBtn').setAttribute('aria-pressed',String(!singleDayMode));$('#singleModeBtn').setAttribute('aria-pressed',String(singleDayMode));
+    $('#resetDatesBtn').disabled = busy || (!savedStart && !rangeStart);
     let progress = document.querySelector('#journalProgress');
     if (!progress) {progress=document.createElement('div');progress.id='journalProgress';progress.className='journal-progress';document.querySelector('.calendar-card').append(progress);}
     const total = savedStart && savedEnd ? Math.round((parseDate(savedEnd)-parseDate(savedStart))/86400000)+1 : 0;
@@ -88,7 +98,8 @@
       const classes = ['calendar-day'];
       if (day.getMonth() !== view.getMonth()) classes.push('outside');
       if (inside) classes.push('in-trip');
-      if (tripEvents.some(event => event.date <= key && (event.endDate || event.date) >= key)) classes.push('has-plans');
+      if(inside&&(rangeStart!==savedStart||rangeEnd!==savedEnd))classes.push('range-preview');
+      if (planRecords().some(row => row.date <= key && (row.note.endDate || row.date) >= key)) classes.push('has-plans');
       if (key === rangeStart && rangeStart) classes.push('range-start');
       if (key === rangeEnd && rangeEnd && rangeEnd !== rangeStart && validRange) classes.push('range-end');
       if (key === selected) classes.push('selected-day');
@@ -104,6 +115,7 @@
       $('#tripLength').textContent = `${count} ${plural(count, 'день', 'дня', 'дней')}`;
     } else if (rangeStart) $('#tripLength').textContent = 'Выберите конец поездки';
     else $('#tripLength').textContent = 'Даты не выбраны';
+    renderOverview();
   }
 
   function plural(number, one, few, many) {
@@ -114,21 +126,20 @@
   }
 
   function chooseDay(key) {
-    if (saving || savingNotes) return;
+    if (saving || savingNotes || addingPlan) return;
     saveError = '';
     if (rangeSelecting) {
-      if (rangePending) {
+      if (rangePending && !singleDayMode) {
         rangeEnd = key;
         if (rangeEnd < rangeStart) [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
         rangePending = false;
-        rangeSelecting = false;
-        saveRange(rangeStart, rangeEnd);
+        // Keep the candidate range local until explicit confirmation.
       } else {
-        rangeStart = key; rangeEnd = ''; rangePending = true;
+        rangeStart = key; rangeEnd = singleDayMode?key:''; rangePending = !singleDayMode;
       }
     }
     selected = key;
-    localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));
+    try{localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));}catch{}
     const date = parseDate(key);
     if (date.getMonth() !== view.getMonth() || date.getFullYear() !== view.getFullYear()) {
       view = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -186,6 +197,7 @@
 
   function persistNotes() {
     dirty=true;
+    renderCalendar();
     try {localStorage.setItem(draftKey, JSON.stringify(notes));$('#daySaveStatus').textContent='Есть несохранённые изменения. Черновик сохранён на устройстве.';}catch{$('#daySaveStatus').textContent='Не удалось сохранить черновик на устройстве. Сохраните события перед выходом.';}
   }
 
@@ -196,7 +208,7 @@
 
   function renderNotes() {
     renderSavedContent();
-    const rangeComplete = rangeStart && rangeEnd && rangeEnd >= rangeStart;
+    const rangeComplete = savedStart && savedEnd && savedEnd >= savedStart;
     $('#addEventBtn').disabled = !rangeComplete || !selected;
     $('#saveDayBtn').disabled = !rangeComplete || !selected;
     if (!rangeComplete || !selected) {
@@ -220,7 +232,7 @@
         <input type="time" aria-label="Время начала события" value="${escapeAttr(item.startTime || item.time || '')}" data-field="startTime">
         <input type="time" aria-label="Время окончания события" value="${escapeAttr(item.endTime || '')}" data-field="endTime">
         <input type="text" aria-label="Событие и место" placeholder="Например, музей или прогулка по набережной" value="${escapeAttr(item.title || '')}" data-field="title">
-        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">${item.place ? escapeAttr(item.place.name)+' — найдено на карте' : 'Без точки'}</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
+        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',walking:'Прогулка',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">${item.place ? escapeAttr(item.place.name)+' — найдено на карте' : 'Без точки'}</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
         <div class="ticket-cell ${item.ticket ? 'has-ticket' : ''}">
           <input class="ticket-file-input" type="file" accept=".pdf,image/jpeg,image/png" aria-label="Выбрать файл билета" tabindex="-1">
           <button class="ticket-pick" type="button" title="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}" aria-label="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 7.1-7.1a3.5 3.5 0 0 1 5 5L10 20.5a5 5 0 0 1-7.1-7.1L13 3.3"/></svg><span>${item.ticket ? '' : 'Прикрепить'}</span></button>
@@ -236,6 +248,7 @@
       row.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('input', () => {
         const current = notes[rowDate] || [];
         current[rowIndex][input.dataset.field] = input.value;
+        if(['startTime','endTime'].includes(input.dataset.field))current[rowIndex].schedule={...current[rowIndex].schedule,timeExplicit:true};
         notes[rowDate] = current;
         persistNotes();
         $('#eventCount').textContent = `${current.length} ${plural(current.length, 'событие', 'события', 'событий')}`;
@@ -253,9 +266,11 @@
         if (!file) return;
         const note = (notes[rowDate] || [])[rowIndex];
         if (!note) return;
+        if(!['application/pdf','image/jpeg','image/png'].includes(file.type)||file.size>10*1024*1024){alert('Выберите билет PDF, JPG или PNG размером до 10 МБ.');fileInput.value='';return;}
         const attachmentId = createTicketId();
         try {
           if (['image/jpeg', 'image/png'].includes(file.type)) {
+            try {
             const formData = new FormData();
             formData.append('photos', file);
             const response = await fetch('/api/uploads', { method: 'POST', body: formData });
@@ -268,6 +283,7 @@
             if (oldId) removeTicketFile(oldId).catch(() => {});
             renderNotes();
             return;
+            } catch { /* Keep a local draft when the upload is unavailable; retry on Save. */ }
           }
           await saveTicketFile(attachmentId, file);
           if (!(notes[rowDate] || []).includes(note)) {
@@ -288,13 +304,7 @@
         const attachment = notes[rowDate]?.[rowIndex]?.ticket;
         if (!attachment) return;
         try {
-          if (attachment.url) {
-            const link = document.createElement('a');
-            link.href = attachment.url;
-            link.download = attachment.name || 'ticket';
-            link.click();
-            return;
-          }
+          if(attachment.url){window.open(attachment.url,'_blank','noopener');return;}
           const stored = await getTicketFile(attachment.id);
           if (!stored?.file) throw new Error('Файл билета не найден. Прикрепите его ещё раз.');
           const objectUrl = URL.createObjectURL(stored.file);
@@ -322,7 +332,7 @@
     if(tripId) document.querySelectorAll('a.map-link,a.map-action').forEach(link=>{
       if(new URL(link.href,location.href).pathname==='/trip') link.href='/trip?'+new URLSearchParams({trip:tripId,date:selected});
     });
-    const events = tripEvents.filter(event => event.date === selected ||
+    const events = planRecords().map(row=>({...row.note,date:row.date,id:row.note.id||'draft:'+row.note.dayNoteId})).filter(event => event.date === selected ||
       (event.endDate && event.date < selected && event.endDate >= selected))
       .sort((a,b) => (a.date+'T'+a.startTime).localeCompare(b.date+'T'+b.startTime));
     const eventHtml = events.map(event => {
@@ -330,51 +340,134 @@
       return `<li><a href="/trip?${new URLSearchParams({trip:tripId,date:selected,event:event.id})}">${GliderIcons.icon(event.type || "other")} <strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong></a>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
     }).join('');
     $('#savedTripContent').innerHTML = tripId ?
-      `<details open><summary>События поездки на выбранный день (${events.length})</summary>${eventHtml ? `<ul>${eventHtml}</ul>` : '<p>На этот день сохранённых событий нет.</p>'}</details>
-       <details><summary>Точки маршрута (${tripPoints.length})</summary><ul>${tripPoints.map(point => `<li>${escapeAttr(point.name)}</li>`).join('')}</ul></details>` : '';
+      `<details open><summary>Планы на выбранный день (${events.length})</summary>${eventHtml ? `<ul>${eventHtml}</ul>` : '<p>На этот день сохранённых событий нет.</p>'}</details>
+       <details><summary>Сохранённые точки маршрута (${tripPoints.length})</summary><ul>${tripPoints.map(point => `<li>${escapeAttr(point.name)}</li>`).join('')}</ul></details>` : '';
   }
 
   function escapeAttr(value) {
     return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
 
+  function noteRows() {
+    return Object.entries(notes).flatMap(([date,rows])=>rows.map(note=>({date,note,key:'note:'+(note.dayNoteId ||= createTicketId())})));
+  }
+  function planRecords() {
+    const rows=noteRows(), imported=new Set(rows.map(row=>row.note.originalEventId).filter(Boolean));
+    return [...tripEvents.filter(event=>event.source!=='day-notes'&&!imported.has(event.id)).map(event=>({date:event.date,note:event,key:'event:'+event.id})),...rows];
+  }
+  function occupiedExcept(keys=[]) {
+    return [...planRecords().filter(row=>!keys.includes(row.key)).map(row=>({...row.note,date:row.date})),...tripTransfers];
+  }
+  function selectPlanDay(key) {
+    selected=key;const day=parseDate(key);view=new Date(day.getFullYear(),day.getMonth(),1);
+    try{localStorage.setItem(storageKey('travelhub-selected-day'),JSON.stringify(selected));}catch{}
+    renderCalendar();renderNotes();
+  }
+  function renderOverview() {
+    const container=$('#tripOverview');if(!container)return;
+    const days=PlanSchedule.days(savedStart,savedEnd);
+    $('#redistributeBtn').disabled=savingNotes||addingPlan||!days.length;
+    if(!days.length){container.innerHTML='<p class="overview-empty">Подтвердите даты поездки — здесь появятся все её дни и свободные слоты.</p>';return;}
+    const records=planRecords();
+    const outside=[...new Set(records.flatMap(r=>[r.date,r.note.endDate||r.date]).filter(d=>PlanSchedule.validDate(d)&&!days.includes(d)))].sort();
+    container.innerHTML=[...days,...outside].map(date=>{
+      const number=days.indexOf(date)+1;
+      const entries=records.filter(r=>r.date<=date&&(r.note.endDate||r.date)>=date).sort((a,b)=>(a.note.startTime||'').localeCompare(b.note.startTime||''));
+      const free=PlanSchedule.SLOTS.filter(startTime=>PlanSchedule.available({date,startTime},occupiedExcept()));
+      const options=days.map(d=>`<option value="${d}" ${d===date?'selected':''}>${escapeAttr(parseDate(d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))}</option>`).join('');
+      return `<article class="overview-day ${selected===date?'is-selected':''} ${number?'':'outside-trip'}" data-drop-day="${date}"><h3><button type="button" data-open-plan-day="${date}">${number?'День '+number:'Вне диапазона'} · ${escapeAttr(parseDate(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))}</button></h3>${entries.length?entries.map(row=>{
+        const note=row.note,located=note.place||tripPoints.some(p=>p.id===note.pointId);
+        return `<div class="overview-plan" draggable="${!savingNotes&&!addingPlan}" data-plan-key="${escapeAttr(row.key)}"><div class="overview-plan-copy">${GliderIcons.icon(note.type||'other')}<time>${escapeAttr(note.startTime||'Время не указано')}</time><strong>${escapeAttr(note.title)}</strong></div>${located?'':'<small class="place-missing">Место не найдено</small>'}${row.key.startsWith('note:')?'<small class="draft-label">План календаря</small>':''}<div class="plan-move"><label>Перенести на<select aria-label="Новый день для ${escapeAttr(note.title)}">${options}</select></label><button class="today-button" type="button" data-move-plan="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Перенести</button></div></div>`;
+      }).join(''):`<p class="free-slot">${free.length?'Свободно':'Занято перемещениями'} <span>${free.join(' · ')}</span></p>`}</article>`;
+    }).join('');
+    container.querySelectorAll('[data-open-plan-day]').forEach(button=>button.onclick=()=>selectPlanDay(button.dataset.openPlanDay));
+    container.querySelectorAll('[data-move-plan]').forEach(button=>button.onclick=()=>movePlan(button.dataset.movePlan,button.closest('.overview-plan').querySelector('select').value));
+    container.querySelectorAll('[draggable=true]').forEach(card=>card.addEventListener('dragstart',event=>{event.dataTransfer.setData('application/x-glider-plan',card.dataset.planKey);event.dataTransfer.effectAllowed='move';}));
+    document.querySelectorAll('[data-drop-day],#calendarGrid [data-day]').forEach(day=>{
+      day.addEventListener('dragover',event=>{if(event.dataTransfer.types.includes('application/x-glider-plan'))event.preventDefault();});
+      day.addEventListener('drop',event=>{event.preventDefault();event.stopPropagation();const key=event.dataTransfer.getData('application/x-glider-plan');if(key)movePlan(key,day.dataset.dropDay||day.dataset.day);});
+    });
+  }
+  function movePlan(key,date) {
+    if(savingNotes||addingPlan)return;
+    try {
+      const row=planRecords().find(r=>r.key===key);if(!row)return;
+      let moved;
+      try {moved=PlanSchedule.place({...row.note,date:row.date},savedStart,savedEnd,occupiedExcept([key]),{date,time:row.note.startTime||null});}
+      catch {moved=PlanSchedule.place({...row.note,date:row.date},savedStart,savedEnd,occupiedExcept([key]),{date});}
+      if(key.startsWith('note:'))notes[row.date]=notes[row.date].filter(note=>note!==row.note);
+      else {moved.originalEventId=row.note.id;moved.dayNoteId=createTicketId();}
+      moved.schedule={...row.note.schedule,dateExplicit:true,timeExplicit:!!row.note.schedule?.timeExplicit&&moved.startTime===row.note.startTime};
+      (notes[date]||=[]).push(moved);selected=date;persistNotes();selectPlanDay(date);
+      $('#scheduleStatus').textContent=`План перенесён: ${parseDate(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}, ${moved.startTime} — ${moved.title}`;
+    }catch(error){$('#scheduleStatus').textContent=error.message;}
+  }
+  $('#redistributeBtn').addEventListener('click',()=>{
+    if(savingNotes||addingPlan)return;
+    try {
+      const automatic=noteRows().filter(r=>r.note.schedule?.automatic).sort((a,b)=>(Number(!!b.note.schedule.dateExplicit)+Number(!!b.note.schedule.timeExplicit))-(Number(!!a.note.schedule.dateExplicit)+Number(!!a.note.schedule.timeExplicit)));
+      const assigned=PlanSchedule.allocate(automatic.map(r=>({...r.note,date:r.date,dateExplicit:r.note.schedule.dateExplicit,timeExplicit:r.note.schedule.timeExplicit})),savedStart,savedEnd,occupiedExcept(automatic.map(r=>r.key)));
+      const old=new Set(automatic.map(r=>r.note));for(const date of Object.keys(notes))notes[date]=notes[date].filter(n=>!old.has(n));
+      for(const item of assigned)(notes[item.date]||=[]).push(item);
+      persistNotes();renderNotes();$('#scheduleStatus').textContent=assigned.length?'Расписание пересобрано. Указанные даты и время сохранены.':'Автоматически распределённых планов пока нет.';
+    }catch(error){$('#scheduleStatus').textContent=error.message+' Прежнее расписание сохранено.';}
+  });
+
   const planTextKey=storageKey('glider-plan-text');
   try {$('#plansText').value=localStorage.getItem(planTextKey)||'';}catch{}
   $('#plansText').addEventListener('input',()=>{try{localStorage.setItem(planTextKey,$('#plansText').value);}catch{$('#plansStatus').textContent='Не удалось сохранить текст на устройстве. Не закрывайте страницу до разбора.';}});
   $('#parsePlansBtn').addEventListener('click',async()=>{
     const text=$('#plansText').value.trim();
-    if(!tripId||!text){$('#plansStatus').textContent=tripId?'Напишите ваши планы.':'Откройте путешествие с главной страницы.';return;}
-    const button=$('#parsePlansBtn');button.disabled=true;button.textContent='Разбираем планы…';button.setAttribute('aria-busy','true');$('#plansStatus').textContent='Подбираем места. Исходный текст остаётся на устройстве.';
+    if(addingPlan||savingNotes)return;
+    if(!tripId||!text||!savedStart||!savedEnd){$('#plansStatus').textContent='Подтвердите даты поездки и напишите план.';return;}
+    const button=$('#parsePlansBtn');addingPlan=true;button.disabled=true;button.textContent='Разбираем и распределяем…';button.setAttribute('aria-busy','true');$('#plansStatus').textContent='Определяем место и свободный слот…';
     try {
-      const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/parse-plans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,date:selected}),signal:AbortSignal.timeout(35000)});
-      const result=await response.json();if(!response.ok)throw Error(result.error||'Не удалось разобрать планы');
-      let added=0,unlocated=0;
-      for(const item of result.items||[]) {
-        const duplicate=(notes[item.date]||[]).some(n=>n.planInput===text && n.planTitle===item.title);
-        if(duplicate)continue;
-        (notes[item.date]||=[]).push({...item,dayNoteId:createTicketId(),planInput:text,planTitle:item.title,description:[item.description,item.placeName&&!item.place?'Место: '+item.placeName+' (координаты не найдены)':''].filter(Boolean).join('\n')});
-        added++;if(!item.place)unlocated++;
+      const hint=PlanSchedule.hints(text,savedStart,savedEnd);let result,offline=false;
+      try {
+        const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/parse-plans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,date:savedStart}),signal:AbortSignal.timeout(35000)});
+        result=await response.json();if(!response.ok)throw Error(result.error||'Не удалось разобрать планы');
+      }catch(error){offline=true;result={items:[{title:text,placeName:text,date:hint.date||savedStart,startTime:hint.time||'',dateExplicit:hint.dateExplicit,timeExplicit:hint.timeExplicit,type:/кафе|ужин|ресторан/i.test(text)?'restaurant':/музей|кремль|парк/i.test(text)?'excursion':'other',description:text,place:null}]};}
+      const fresh=(result.items||[]).filter(item=>!noteRows().some(row=>row.note.planInput===text&&row.note.planTitle===item.title));
+      const assigned=PlanSchedule.allocate(fresh,savedStart,savedEnd,occupiedExcept());
+      for(const item of assigned){
+        const note={...item,dayNoteId:createTicketId(),planInput:text,planTitle:item.title,schedule:{automatic:true,dateExplicit:item.dateExplicit===true,timeExplicit:item.timeExplicit===true},description:[item.description,item.placeName&&!item.place?'Место: '+item.placeName+' (место не найдено)':''].filter(Boolean).join('\n')};
+        (notes[item.date]||=[]).push(note);
       }
-      if(added && result.items?.[0]?.date){selected=result.items[0].date;const day=parseDate(selected);view=new Date(day.getFullYear(),day.getMonth(),1);try{localStorage.setItem(storageKey('travelhub-selected-day'),JSON.stringify(selected));}catch{}}
-      persistNotes();renderCalendar();renderNotes();
-      $('#plansStatus').textContent=added?`Добавлено в черновик: ${added}. Проверьте даты и время, затем сохраните события.${unlocated?' Для некоторых мест координаты не найдены; выберите точку вручную.':''}`:'Эти планы уже есть в черновике.';
-    }catch(error){$('#plansStatus').textContent='Не удалось обработать планы. Текст сохранён на устройстве; повторите попытку. '+error.message;}
-    finally {button.disabled=false;button.textContent='Разобрать планы';button.setAttribute('aria-busy','false');}
+      if(assigned[0]){selected=assigned[0].date;const day=parseDate(selected);view=new Date(day.getFullYear(),day.getMonth(),1);}
+      persistNotes();renderNotes();
+      $('#plansStatus').textContent=assigned.length?assigned.map(item=>`План распределён: ${parseDate(item.date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}, ${item.startTime} — ${item.title}${!item.place?' (место не найдено)':''}`).join('; ')+(offline?' Текст обработан локально.':''):'Этот план уже добавлен.';
+      $('#plansText').value='';try{localStorage.setItem(planTextKey,'');}catch{}
+    }catch(error){$('#plansStatus').textContent=error.message+' Текст плана сохранён — исправьте его или измените даты поездки.';}
+    finally {addingPlan=false;button.textContent='Добавить план';button.setAttribute('aria-busy','false');renderCalendar();}
   });
+  $('#plansText').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('#parsePlansBtn').click();}});
 
   $('#saveDayBtn').addEventListener('click',async()=>{
-    if(savingNotes)return;
-    if(!rangeStart||!rangeEnd){$('#daySaveStatus').textContent='Сначала выберите диапазон поездки в календаре.';return;}
+    if(savingNotes||addingPlan)return;
+    if(!savedStart||!savedEnd){$('#daySaveStatus').textContent='Сначала выберите диапазон поездки в календаре.';return;}
     if(!tripId){$('#daySaveStatus').textContent='Откройте календарь конкретного путешествия с главной страницы.';return;}
     const events=[];
     for(const [date,rows] of Object.entries(notes))for(const note of rows){
       if(!note.title?.trim() || !(note.startTime||note.time)){$('#daySaveStatus').textContent='Заполните название и время начала всех событий, включая другие дни. Либо удалите пустые строки.';return;}
       note.dayNoteId=note.dayNoteId||createTicketId();
-      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null,place:note.place||null});
+      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null,place:note.place||null,schedule:note.schedule||null,originalEventId:note.originalEventId||null});
     }
     persistNotes();savingNotes=true;$('#saveDayBtn').disabled=true;$('#saveDayBtn').textContent='Сохраняем…';
     const controls=[...$('#notesRows').querySelectorAll('input,textarea,select,button'),$('#addEventBtn')];controls.forEach(el=>el.disabled=true);
     try{
+      // Local files remain recoverable on failure. Upload before committing event metadata.
+      for(const entry of events){
+        if(!entry.ticket || entry.ticket.url)continue;
+        const stored=await getTicketFile(entry.ticket.id);
+        if(!stored?.file)throw Error('Файл билета не найден. Прикрепите его заново.');
+        const form=new FormData();form.append('attachments',stored.file,entry.ticket.name);
+        const upload=await fetch('/api/uploads',{method:'POST',body:form,signal:AbortSignal.timeout(30000)});
+        const result=await upload.json();if(!upload.ok)throw Error(result.error||'Не удалось загрузить билет');
+        entry.ticket={...entry.ticket,...result[0]};
+        const note=Object.values(notes).flat().find(note=>note.dayNoteId===entry.dayNoteId);
+        if(note)note.ticket=entry.ticket;
+        persistNotes();
+      }
       const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/day-events',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({events}),signal:AbortSignal.timeout(15000)});
       const result=await response.json();if(!response.ok)throw Error(result.error||(result.errors||[]).join(', ')||'Не удалось сохранить события');
       committed=JSON.parse(JSON.stringify(notes));
@@ -386,15 +479,12 @@
   });
 
 
-  $('#resetDatesBtn').addEventListener('click', () => {
-    rangeSelecting = true;
-    rangePending = false;
-    saveRange('', '');
-  });
-  $('#startRangeBtn').addEventListener('click', () => {
-    rangeSelecting = true;
-    $('#calendarGrid').focus();
-  });
+  $('#resetDatesBtn').addEventListener('click',()=>{rangeSelecting=true;rangePending=false;rangeStart='';rangeEnd='';renderCalendar();});
+  $('#clearDatesBtn').addEventListener('click',()=>saveRange('',''));
+  $('#confirmDatesBtn').addEventListener('click',()=>{if(rangeStart&&rangeEnd)saveRange(rangeStart,rangeEnd);});
+  $('#openSelectedDayBtn').addEventListener('click',()=>{if(tripId&&(selected||savedStart))location.href='/trip?'+new URLSearchParams({trip:tripId,date:selected||savedStart});});
+  $('#startRangeBtn').addEventListener('click',()=>{rangeSelecting=true;$('#calendarGrid').focus();});
+  for(const [id,single] of [['rangeModeBtn',false],['singleModeBtn',true]])$("#"+id).addEventListener('click',()=>{singleDayMode=single;rangeSelecting=true;rangePending=false;rangeStart='';rangeEnd='';renderCalendar();});
   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
   $('#nextMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); });
   function changeCalendarMonth() {
@@ -405,7 +495,7 @@
   $('#yearSelect').addEventListener('change', changeCalendarMonth);
 
   $('#addEventBtn').addEventListener('click', () => {
-    notes[selected] = [...(notes[selected] || []), { startTime: '', endTime: '', title: '' }];
+    notes[selected] = [...(notes[selected] || []), {dayNoteId:createTicketId(),startTime:'',endTime:'',title:''}];
     persistNotes();
     renderNotes();
     $('#notesRows .note-row:last-child input[type="time"]').focus();
@@ -424,7 +514,7 @@
         setTimeout(() => location.replace('/'), 1500);
         return;
       }
-      [tripPoints, tripEvents] = await Promise.all(['points','events'].map(async resource => {
+      [tripPoints, tripEvents, tripTransfers] = await Promise.all(['points','events','transfers'].map(async resource => {
         const result = await fetch('/api/'+resource+'?'+new URLSearchParams({tripId}));
         if(!result.ok) throw Error('Не удалось загрузить содержимое поездки. Попробуйте обновить страницу.');
         return result.json();
@@ -470,9 +560,18 @@
       const selectedDate = parseDate(selected);
       view = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     }
-    renderCalendar();
+    plannerReady=true;renderCalendar();
     renderNotes();
   }
+  let refreshing=false;
+  async function refreshFromServer(){
+    if(dirty||saving||savingNotes||addingPlan||refreshing||!plannerReady||rangePending||rangeStart!==savedStart||rangeEnd!==savedEnd)return;
+    refreshing=true;
+    try{await init();}catch{ /* Keep the current screen and drafts when offline. */ }
+    finally{refreshing=false;}
+  }
+  window.addEventListener('focus',refreshFromServer);
+  window.addEventListener('storage',event=>{if(event.key==='glider-trips-updated')refreshFromServer();});
   init().catch(error => {
     $('.intro-copy').textContent = error.message;
     $('#addEventBtn').disabled = true;

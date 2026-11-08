@@ -11,3 +11,19 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--ink)}.topb
 
 .plan-text-card{margin:var(--space-lg) 0;padding:var(--space-lg);border:1px solid var(--line);border-radius:var(--radius);background:var(--paper)}.plan-text-card textarea{width:100%;box-sizing:border-box;resize:vertical;margin:var(--space-sm) 0 var(--space);padding:var(--space);font:inherit;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:var(--radius-sm)}.plan-text-card label{display:block;margin-top:var(--space)}.plan-text-card .muted{font-size:12px;line-height:1.6}.plan-text-card textarea:focus{outline:2px solid var(--accent-strong);outline-offset:2px}
 .empty-notes[hidden]{display:none}
+/* Calendar is the planning desk; the day editor below remains available. */
+.trip-overview{margin:var(--space-lg) 0}.overview-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--space)}
+#tripOverview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:var(--space)}
+.overview-day{min-width:0;padding:var(--space);background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm)}
+.overview-day.is-selected{border-color:var(--accent-strong)}.overview-day.outside-trip{border-style:dashed}
+.overview-day h3{margin:0 0 var(--space);font-family:var(--font-heading)}.overview-day h3 button{background:none;border:0;color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+.overview-plan{padding:var(--space-sm);border:1px solid var(--line);border-radius:var(--radius-sm);margin-top:var(--space-sm);background:var(--cream)}
+.overview-plan[draggable=true]{cursor:grab}.overview-plan-copy{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-sm)}.overview-plan-copy strong{flex-basis:100%;overflow-wrap:anywhere;font-size:14px}.overview-plan-copy time{font-weight:700;color:var(--accent-strong)}
+.place-missing{display:block;margin:var(--space-sm) 0;color:var(--muted)}.draft-label{font-size:10px;color:var(--muted)}
+.plan-move{display:flex;align-items:flex-end;gap:var(--space-sm);margin-top:var(--space-sm)}.plan-move label{flex:1;min-width:0;margin:0;font-size:11px}.plan-move select{width:100%;max-width:100%;padding:var(--space-sm);font:inherit;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--ink)}.plan-move button{flex:none;font-size:11px;padding:var(--space-sm)}
+.free-slot{color:var(--muted);padding:var(--space-sm);border:1px dashed var(--line);border-radius:var(--radius-sm)}.free-slot span{display:block;font-size:12px;margin-top:var(--space-sm)}
+.schedule-modes{display:flex;gap:var(--space-sm);margin:var(--space) 0}.schedule-modes button[aria-pressed=true]{background:var(--accent-strong);color:var(--cream)}
+.calendar-day.range-preview{background:var(--paper)!important;color:var(--accent-strong)!important;outline:1px dashed var(--accent-strong);outline-offset:-3px}
+.calendar-footer{flex-wrap:wrap;gap:var(--space-sm)}.plan-text-card input{display:block;width:100%;box-sizing:border-box;font:inherit;margin:var(--space) 0;padding:var(--space);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--ink)}
+.plan-text-card input:focus{outline:2px solid var(--accent-strong);outline-offset:2px}
+@media(max-width:600px){.overview-heading{align-items:flex-start;flex-direction:column}.plan-move{flex-wrap:wrap}#tripOverview{grid-template-columns:minmax(0,1fr)}}

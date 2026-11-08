@@ -1,0 +1,6 @@
+.history-controls {display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
+#historyNavigation:not([hidden]) {display:flex;align-items:center;gap:10px}
+#historyToggle[aria-pressed="true"] {background:var(--ink,#1f3b3d);color:#fff}
+.transport-label {font:600 12px system-ui;color:#1f3b3d;background:#fff;border:1px solid #758b83;white-space:normal;max-width:220px}
+.materials a {display:inline-flex}.materials a:focus-visible {outline:3px solid #a63d2b}
+@media(max-width:600px){.history-controls{align-items:stretch;flex-direction:column}.section-actions{flex-wrap:wrap}.transport-label{max-width:140px}}
