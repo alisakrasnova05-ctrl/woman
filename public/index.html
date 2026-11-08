@@ -1,18 +1,27 @@
 <!doctype html>
 <html lang="ru">
   <head>
+    <style>@view-transition { navigation: auto; }</style>
+    <script>
+  for(const name of ['pagereveal','pageswap'])window.addEventListener(name,event=>{
+    const transition=event.viewTransition;if(!transition)return;
+    transition.ready.catch(()=>{});transition.finished.catch(()=>{});transition.updateCallbackDone.catch(()=>{});
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)transition.skipTransition();
+  });
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Traveler's Glider</title>
+    <title>explore.</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/theme.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/journal.css"><link rel="stylesheet" href="/mvp.css">
-<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
+<meta name="description" content="explore. — ваш живой журнал путешествий.">
+<link rel="stylesheet" href="/polish.css">
 </head>
   <body>
     <header>
-      <a class="brand" href="/" style="text-decoration:none"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></a>
+      <a class="brand" href="/" style="text-decoration:none"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>explore.</span></a>
       <div class="trip">Москва · 12–14 июня 2025</div>
     <nav class="site-nav trip-screen-nav" aria-label="Разделы поездки"><a href="/">На главную</a><a href="/" data-trip-screen="calendar">Календарь</a><a href="/" data-trip-screen="map">Карта</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
 
@@ -160,5 +169,6 @@
 <script src="/map-drafts.js"></script>
 <script src="/app.js"></script>
   <script src="/journal.js"></script>
+<script src="/mascot.js"></script>
 </body>
 </html>

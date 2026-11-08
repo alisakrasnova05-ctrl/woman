@@ -21,7 +21,7 @@
   const committedKey=storageKey('travelhub-day-notes-committed');
   let committed=load('travelhub-day-notes-committed',null);
   let dirty=committed===null?Object.values(notes).some(rows=>rows.length):JSON.stringify(notes)!==JSON.stringify(committed);
-  let savingNotes=false;
+  let savingNotes=false, deletingPlan=false;
   let leavingPlanner=false;
   window.addEventListener('pageshow',()=>{leavingPlanner=false;});
   window.addEventListener('beforeunload',event=>{if(dirty&&!leavingPlanner){event.preventDefault();event.returnValue='';}});
@@ -91,7 +91,7 @@
     $('#rangePrompt').hidden = !!rangeComplete;
     $('#rangePromptMessage').textContent = rangePending ? 'Начало выбрано. Теперь укажите дату окончания.' : 'Нажмите дату начала, затем дату окончания поездки.';
     $('#startRangeBtn').textContent = rangePending ? 'Выбрать окончание' : 'Выбрать диапазон';
-    const busy=saving||savingNotes||addingPlan;
+    const busy=saving||savingNotes||addingPlan||deletingPlan;
     for(const id of ['rangeModeBtn','singleModeBtn','startRangeBtn','resetDatesBtn'])$('#'+id).disabled=busy;
     $('#confirmDatesBtn').disabled=busy||!rangeComplete||(rangeStart===savedStart&&rangeEnd===savedEnd);
     $('#openSelectedDayBtn').disabled=busy||(!selected&&!savedStart);
@@ -229,8 +229,8 @@
   function renderNotes() {
     renderSavedContent();
     const rangeComplete = savedStart && savedEnd && savedEnd >= savedStart;
-    $('#addEventBtn').disabled = !rangeComplete || !selected;
-    $('#saveDayBtn').disabled = !rangeComplete || !selected;
+    $('#addEventBtn').disabled = !rangeComplete || !selected || deletingPlan;
+    $('#saveDayBtn').disabled = !rangeComplete || !selected || deletingPlan;
     if (!rangeComplete || !selected) {
       $('#notesTitle').textContent = rangeComplete ? 'Выберите день поездки' : 'Сначала выберите диапазон';
       $('#selectedDateLabel').textContent = selected ? parseDate(selected).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}) : '';
@@ -423,8 +423,8 @@
   function placeControls(row){
     const note=row.note,place=note.place||tripPoints.find(point=>point.id===note.pointId),candidates=(note.placeCandidates||[]).filter(validPlace);
     const label=place?`<p class="plan-place">${GliderIcons.icon('pin')} ${escapeAttr(placeCaption(place))}</p>`:`<small class="place-missing">${candidates.length?'Выберите место из вариантов':note.placeSearchStatus==='unavailable'?'Поиск недоступен — план сохранён без места':note.placeSearchStatus==='skipped'?'Место не указано':'Место не найдено'}</small>`;
-    const choices=candidates.length?`<details class="place-choices" ${place?'':'open'}><summary>${place?'Изменить место':'Варианты места'}</summary>${candidates.map((candidate,index)=>`<button type="button" class="place-choice ${candidate.inCity?'recommended':''}" data-select-place="${escapeAttr(row.key)}" data-candidate="${index}" ${savingNotes||addingPlan?'disabled':''}><strong>${escapeAttr(placeCaption(candidate))}</strong>${candidate.inCity?'<small>Рекомендуется · город поездки</small>':''}<span>${escapeAttr(candidate.address||candidate.type||'')}</span></button>`).join('')}<button type="button" class="place-skip" data-skip-place="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Оставить без места</button></details>`:'';
-    return label+choices+(!place&&!candidates.length?`<button type="button" class="place-retry" data-retry-place="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Найти место ещё раз</button>`:'');
+    const choices=candidates.length?`<details class="place-choices" ${place?'':'open'}><summary>${place?'Изменить место':'Варианты места'}</summary>${candidates.map((candidate,index)=>`<button type="button" class="place-choice ${candidate.inCity?'recommended':''}" data-select-place="${escapeAttr(row.key)}" data-candidate="${index}" ${savingNotes||addingPlan||deletingPlan?'disabled':''}><strong>${escapeAttr(placeCaption(candidate))}</strong>${candidate.inCity?'<small>Рекомендуется · город поездки</small>':''}<span>${escapeAttr(candidate.address||candidate.type||'')}</span></button>`).join('')}<button type="button" class="place-skip" data-skip-place="${escapeAttr(row.key)}" ${savingNotes||addingPlan||deletingPlan?'disabled':''}>Оставить без места</button></details>`:'';
+    return label+choices+(!place&&!candidates.length?`<button type="button" class="place-retry" data-retry-place="${escapeAttr(row.key)}" ${savingNotes||addingPlan||deletingPlan?'disabled':''}>Найти место ещё раз</button>`:'');
   }
   function editablePlan(key){
     const row=planRecords().find(row=>row.key===key);if(!row)return null;
@@ -435,7 +435,7 @@
     return row.note;
   }
   function selectPlace(key,index){
-    if(savingNotes||addingPlan)return;
+    if(savingNotes||addingPlan||deletingPlan)return;
     const row=planRecords().find(row=>row.key===key),candidate=index===null?null:row?.note.placeCandidates?.[index];
     if(!row||(index!==null&&!validPlace(candidate)))return;
     const note=editablePlan(key);note.place=candidate;note.pointId=null;
@@ -446,7 +446,7 @@
   function renderOverview() {
     const container=$('#tripOverview');if(!container)return;
     const days=PlanSchedule.days(savedStart,savedEnd);
-    $('#redistributeBtn').disabled=savingNotes||addingPlan||!days.length;
+    $('#redistributeBtn').disabled=savingNotes||addingPlan||deletingPlan||!days.length;
     if(!days.length){container.innerHTML='<p class="overview-empty">Подтвердите даты поездки — здесь появятся все её дни и свободные слоты.</p>';return;}
     const records=planRecords();
     const outside=[...new Set(records.flatMap(r=>[r.date,r.note.endDate||r.date]).filter(d=>PlanSchedule.validDate(d)&&!days.includes(d)))].sort();
@@ -457,19 +457,20 @@
       const options=days.map(d=>`<option value="${d}" ${d===date?'selected':''}>${escapeAttr(parseDate(d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))}</option>`).join('');
       return `<article class="overview-day ${selected===date?'is-selected':''} ${number?'':'outside-trip'}" data-drop-day="${date}"><h3><button type="button" data-open-plan-day="${date}">${number?'День '+number:'Вне диапазона'} · ${escapeAttr(parseDate(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))}</button></h3>${entries.length?entries.map(row=>{
         const note=row.note;
-        return `<div class="overview-plan" draggable="${!savingNotes&&!addingPlan}" data-plan-key="${escapeAttr(row.key)}"><div class="overview-plan-copy">${GliderIcons.icon(note.type||'other')}<time>${escapeAttr(note.startTime||'Время не указано')}</time><strong>${escapeAttr(note.title)}</strong></div>${placeControls(row)}${row.key.startsWith('note:')?'<small class="draft-label">План календаря</small>':''}<div class="plan-move"><label>Перенести на<select aria-label="Новый день для ${escapeAttr(note.title)}">${options}</select></label><button class="today-button" type="button" data-move-plan="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Перенести</button></div></div>`;
+        return `<div class="overview-plan" draggable="${!savingNotes&&!addingPlan&&!deletingPlan}" data-plan-key="${escapeAttr(row.key)}"><div class="overview-plan-copy">${GliderIcons.icon(note.type||'other')}<time>${escapeAttr(note.startTime||'Время не указано')}</time><strong>${escapeAttr(note.title)}</strong></div>${placeControls(row)}${row.key.startsWith('note:')?'<small class="draft-label">План календаря</small>':''}<div class="plan-move"><label>Перенести на<select aria-label="Новый день для ${escapeAttr(note.title)}">${options}</select></label><button class="today-button" type="button" data-move-plan="${escapeAttr(row.key)}" ${savingNotes||addingPlan||deletingPlan?'disabled':''}>Перенести</button><button class="plan-delete" type="button" data-delete-plan="${escapeAttr(row.key)}" aria-label="Удалить план: ${escapeAttr(note.title)}" ${savingNotes||addingPlan||deletingPlan?'disabled':''}>${GliderIcons.icon('trash')} Удалить</button></div></div>`;
       }).join(''):`<p class="free-slot">${free.length?'Свободно':'Занято перемещениями'} <span>${free.join(' · ')}</span></p>`}</article>`;
     }).join('');
     container.querySelectorAll('[data-select-place]').forEach(button=>button.onclick=()=>selectPlace(button.dataset.selectPlace,Number(button.dataset.candidate)));
     container.querySelectorAll('[data-skip-place]').forEach(button=>button.onclick=()=>selectPlace(button.dataset.skipPlace,null));
     container.querySelectorAll('[data-retry-place]').forEach(button=>button.onclick=async()=>{
-      if(savingNotes||addingPlan)return;
+      if(savingNotes||addingPlan||deletingPlan)return;
       const row=planRecords().find(row=>row.key===button.dataset.retryPlace);if(!row)return;
       const note=editablePlan(row.key);addingPlan=true;persistNotes();renderCalendar();
       try{const result=await findPlaces(note.placeName||note.title,true);note.place=result.place;note.placeCandidates=result.candidates;note.placeSearchStatus=result.status;note.pointId=null;persistNotes();}
       finally{addingPlan=false;renderNotes();renderCalendar();}
     });
     container.querySelectorAll('[data-open-plan-day]').forEach(button=>button.onclick=()=>selectPlanDay(button.dataset.openPlanDay));
+    container.querySelectorAll('[data-delete-plan]').forEach(button=>button.onclick=()=>deletePlan(button.dataset.deletePlan));
     container.querySelectorAll('[data-move-plan]').forEach(button=>button.onclick=()=>movePlan(button.dataset.movePlan,button.closest('.overview-plan').querySelector('select').value));
     container.querySelectorAll('[draggable=true]').forEach(card=>card.addEventListener('dragstart',event=>{event.dataTransfer.setData('application/x-glider-plan',card.dataset.planKey);event.dataTransfer.effectAllowed='move';}));
     document.querySelectorAll('[data-drop-day],#calendarGrid [data-day]').forEach(day=>{
@@ -477,8 +478,45 @@
       day.addEventListener('drop',event=>{event.preventDefault();event.stopPropagation();const key=event.dataTransfer.getData('application/x-glider-plan');if(key)movePlan(key,day.dataset.dropDay||day.dataset.day);});
     });
   }
+  async function deletePlan(key) {
+    if(savingNotes||addingPlan||deletingPlan)return;
+    const row=planRecords().find(item=>item.key===key);
+    if(!row||!confirm('Удалить план «'+row.note.title+'»?'))return;
+    const event=tripEvents.find(event=>event.id===row.note.id||event.id===row.note.originalEventId||
+      (row.note.dayNoteId&&event.dayNoteId===row.note.dayNoteId));
+    deletingPlan=true;renderCalendar();renderNotes();
+    try {
+      if(event){
+        const response=await fetch('/api/events/'+encodeURIComponent(event.id),{method:'DELETE',signal:AbortSignal.timeout(15000)});
+        if(!response.ok&&response.status!==404){
+          const result=await response.json().catch(()=>({}));
+          throw Error(result.error||'Сервис временно недоступен');
+        }
+      }
+      // Only remove the requested plan. Route points and shared files remain intact.
+      const matches=note=>note===row.note||
+        (!!row.note.dayNoteId&&note.dayNoteId===row.note.dayNoteId)||
+        (!!event&&(note.id===event.id||note.originalEventId===event.id||
+          (!!event.dayNoteId&&note.dayNoteId===event.dayNoteId)));
+      for(const date of Object.keys(notes))notes[date]=notes[date].filter(note=>!matches(note));
+      if(event){
+        tripEvents=tripEvents.filter(item=>item.id!==event.id);
+        if(committed)for(const date of Object.keys(committed))committed[date]=committed[date].filter(note=>!matches(note));
+      }
+      persistNotes();
+      dirty=JSON.stringify(notes)!==JSON.stringify(committed);
+      try {
+        if(committed!==null)localStorage.setItem(committedKey,JSON.stringify(committed));
+        localStorage.setItem('glider-trips-updated',JSON.stringify({tripId,at:Date.now()}));
+      }catch{}
+      $('#scheduleStatus').textContent='План удалён: '+row.note.title;
+      if(!dirty)$('#daySaveStatus').textContent='Удаление сохранено.';
+    }catch(error){
+      $('#scheduleStatus').textContent='Не удалось удалить план: '+error.message+'. План оставлен без изменений.';
+    }finally{deletingPlan=false;renderCalendar();renderNotes();}
+  }
   function movePlan(key,date) {
-    if(savingNotes||addingPlan)return;
+    if(savingNotes||addingPlan||deletingPlan)return;
     try {
       const row=planRecords().find(r=>r.key===key);if(!row)return;
       let moved;
@@ -492,7 +530,7 @@
     }catch(error){$('#scheduleStatus').textContent=error.message;}
   }
   $('#redistributeBtn').addEventListener('click',()=>{
-    if(savingNotes||addingPlan)return;
+    if(savingNotes||addingPlan||deletingPlan)return;
     try {
       const automatic=noteRows().filter(r=>r.note.schedule?.automatic).sort((a,b)=>(Number(!!b.note.schedule.dateExplicit)+Number(!!b.note.schedule.timeExplicit))-(Number(!!a.note.schedule.dateExplicit)+Number(!!a.note.schedule.timeExplicit)));
       const assigned=PlanSchedule.allocate(automatic.map(r=>({...r.note,date:r.date,dateExplicit:r.note.schedule.dateExplicit,timeExplicit:r.note.schedule.timeExplicit})),savedStart,savedEnd,occupiedExcept(automatic.map(r=>r.key)));
@@ -535,7 +573,7 @@
   $('#plansText').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('#parsePlansBtn').click();}});
 
   $('#saveDayBtn').addEventListener('click',async()=>{
-    if(savingNotes||addingPlan)return;
+    if(savingNotes||addingPlan||deletingPlan)return;
     if(!savedStart||!savedEnd){$('#daySaveStatus').textContent='Сначала выберите диапазон поездки в календаре.';return;}
     if(!tripId){$('#daySaveStatus').textContent='Откройте календарь конкретного путешествия с главной страницы.';return;}
     const events=[];
@@ -635,7 +673,7 @@
         dirty=false;
       }
       $('.intro h1').textContent = trip.title;
-      document.title = `${trip.title} — календарь · Traveler's Glider`;
+      document.title = `${trip.title} — календарь · explore.`;
       rangeStart = trip.startDate || '';
       rangeEnd = trip.endDate || '';
       rangeSelecting = !(rangeStart && rangeEnd);
@@ -660,7 +698,7 @@
   }
   let refreshing=false;
   async function refreshFromServer(){
-    if(dirty||saving||savingNotes||addingPlan||refreshing||!plannerReady||rangePending||rangeStart!==savedStart||rangeEnd!==savedEnd)return;
+    if(dirty||saving||savingNotes||addingPlan||deletingPlan||refreshing||!plannerReady||rangePending||rangeStart!==savedStart||rangeEnd!==savedEnd)return;
     refreshing=true;
     try{await init();}catch{ /* Keep the current screen and drafts when offline. */ }
     finally{refreshing=false;}

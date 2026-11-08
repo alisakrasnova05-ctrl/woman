@@ -1,19 +1,28 @@
 <!doctype html>
 <html lang="ru">
   <head>
+    <style>@view-transition { navigation: auto; }</style>
+    <script>
+  for(const name of ['pagereveal','pageswap'])window.addEventListener(name,event=>{
+    const transition=event.viewTransition;if(!transition)return;
+    transition.ready.catch(()=>{});transition.finished.catch(()=>{});transition.updateCallbackDone.catch(()=>{});
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)transition.skipTransition();
+  });
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#1f3b3d">
-    <title>План поездки — Traveler's Glider</title>
+    <title>План поездки — explore.</title>
     <link rel="stylesheet" href="/theme.css">
     <link rel="stylesheet" href="/planner.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/journal.css">
-<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
+<meta name="description" content="explore. — ваш живой журнал путешествий.">
+<link rel="stylesheet" href="/polish.css">
 </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/" aria-label="На главную"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span> Traveler's Glider</a>
+      <a class="brand" href="/" aria-label="На главную"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span> explore.</a>
       <nav class="site-nav trip-screen-nav" aria-label="Разделы поездки"><a href="/">На главную</a><a href="/" data-trip-screen="calendar">Календарь</a><a href="/" data-trip-screen="map">Карта</a></nav>
     </header>
 
@@ -89,5 +98,6 @@
 <script src="/plan-schedule.js"></script>
 <script src="/planner.js"></script>
   <script src="/journal.js"></script>
+<script src="/mascot.js"></script>
 </body>
 </html>

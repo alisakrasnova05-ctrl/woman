@@ -1,16 +1,6 @@
 {
   "trips": [
     {
-      "id": "trip_1794058626028_22gqj",
-      "title": "казань",
-      "destination": "казань",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T13:37:06.029Z"
-    },
-    {
       "id": "trip_1794059317372_gms0o",
       "title": "байкал",
       "destination": "байкал",
@@ -18,7 +8,8 @@
       "year": 2026,
       "startDate": "2026-12-03",
       "endDate": "2026-12-17",
-      "createdAt": "2026-11-07T13:48:37.372Z"
+      "createdAt": "2026-11-07T13:48:37.372Z",
+      "datesConfirmed": true
     },
     {
       "id": "trip_1794059335136_hiy5m",
@@ -300,6 +291,69 @@
       "endDate": "2028-12-14",
       "datesConfirmed": true,
       "createdAt": "2026-11-08T10:44:44.603Z"
+    },
+    {
+      "id": "trip_1794136218973_3r1s4",
+      "title": "культура",
+      "origin": "Набережные Челны",
+      "originCity": {
+        "id": 523750,
+        "name": "Набережные Челны",
+        "country": "Россия",
+        "countryCode": "RU",
+        "admin1": "Татарстан",
+        "latitude": 55.73718,
+        "longitude": 52.41961,
+        "timezone": "Europe/Moscow"
+      },
+      "destination": "Санкт-Петербург",
+      "coverUrl": "/uploads/photo_1794136218682_ju1mb.jpg",
+      "city": {
+        "id": "local-saint-petersburg",
+        "name": "Санкт-Петербург",
+        "country": "Россия",
+        "admin1": "Санкт-Петербург",
+        "latitude": 59.9343,
+        "longitude": 30.3351,
+        "timezone": "Europe/Moscow"
+      },
+      "month": 8,
+      "year": 2028,
+      "startDate": "2028-08-10",
+      "endDate": "2028-08-24",
+      "datesConfirmed": true,
+      "createdAt": "2026-11-08T11:10:18.973Z"
+    },
+    {
+      "id": "trip_1794136783994_im9mq",
+      "title": "Джуса",
+      "origin": "Москва",
+      "originCity": {
+        "id": "local-moscow",
+        "name": "Москва",
+        "country": "Россия",
+        "admin1": "Москва",
+        "latitude": 55.7558,
+        "longitude": 37.6173,
+        "timezone": "Europe/Moscow"
+      },
+      "destination": "Рим",
+      "coverUrl": "/uploads/photo_1794136783986_evbqm.jpg",
+      "city": {
+        "id": "local-rome",
+        "name": "Рим",
+        "country": "Италия",
+        "admin1": "Лацио",
+        "latitude": 41.9028,
+        "longitude": 12.4964,
+        "timezone": "Europe/Rome"
+      },
+      "month": 12,
+      "year": 2026,
+      "startDate": "2026-12-08",
+      "endDate": "2026-12-25",
+      "datesConfirmed": true,
+      "createdAt": "2026-11-08T11:19:43.994Z"
     }
   ],
   "attractions": [
@@ -497,6 +551,53 @@
       "placeType": "beach",
       "source": "nominatim",
       "distanceKm": 0.8
+    },
+    {
+      "id": "p_1794136944307_p8g4l",
+      "tripId": "trip_1794136783994_im9mq",
+      "name": "Колизей",
+      "lat": 41.8902572,
+      "lng": 12.4923841,
+      "description": "Колизей, Piazza del Colosseo, Celio, Municipio Roma I, Рим, Roma Capitale, Лацио, 00184, Италия",
+      "city": "Рим",
+      "countryCode": "IT",
+      "placeType": "amphitheatre",
+      "source": "nominatim",
+      "distanceKm": 1.4
+    },
+    {
+      "id": "p_1794136944307_rpi73",
+      "tripId": "trip_1794136783994_im9mq",
+      "name": "Via San Marino",
+      "lat": 44.063907,
+      "lng": 12.513428,
+      "description": "Via San Marino, Nuova Florida, Ардеа, Roma Capitale, Лацио, 00040, Италия",
+      "city": "Ардеа",
+      "countryCode": "IT",
+      "placeType": "residential",
+      "source": "nominatim",
+      "distanceKm": 32.4
+    },
+    {
+      "id": "p_1794137125648_m0lk1",
+      "name": "ВАтикано>",
+      "lat": 41.903938,
+      "lng": 12.45369,
+      "description": "Собор Петра и Павла",
+      "tripId": "trip_1794136783994_im9mq"
+    },
+    {
+      "id": "p_1794140319955_huqyy",
+      "tripId": "trip_1794059317372_gms0o",
+      "name": "Байкал",
+      "lat": 43.7125461,
+      "lng": 24.4068881,
+      "description": "Байкал, Георги Димитров, Байкал, Долна Митрополия, Плевенская область, Болгария",
+      "city": "Байкал",
+      "countryCode": "BG",
+      "placeType": "restaurant",
+      "source": "nominatim",
+      "distanceKm": null
     }
   ],
   "events": [
@@ -618,6 +719,168 @@
       "tripId": "trip_1794134684603_i2znc",
       "source": "day-notes",
       "createdAt": "2026-11-08T10:51:59.132Z"
+    },
+    {
+      "dayNoteId": "trip_1794136218973_3r1s4:8b89efde-e96c-4998-82ee-5327f006173a",
+      "title": "Сходить в кино",
+      "type": "other",
+      "date": "2028-08-10",
+      "startTime": "09:00",
+      "endTime": "",
+      "endDate": "2028-08-10",
+      "description": "",
+      "pointId": null,
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": false,
+        "timeExplicit": false
+      },
+      "startAt": "2028-08-10T06:00:00.000Z",
+      "id": "e_1794136300314_q7ph5",
+      "tripId": "trip_1794136218973_3r1s4",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T11:11:40.314Z"
+    },
+    {
+      "dayNoteId": "trip_1794136218973_3r1s4:7ef6cdb8-4776-4888-b4f9-67f95aed5ee8",
+      "title": "Сходить в музей",
+      "type": "excursion",
+      "date": "2028-08-10",
+      "startTime": "14:00",
+      "endTime": "",
+      "endDate": "2028-08-10",
+      "description": "",
+      "pointId": null,
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": false,
+        "timeExplicit": false
+      },
+      "startAt": "2028-08-10T11:00:00.000Z",
+      "id": "e_1794136300314_ylxbf",
+      "tripId": "trip_1794136218973_3r1s4",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T11:11:40.314Z"
+    },
+    {
+      "dayNoteId": "trip_1794136783994_im9mq:e2f5eb29-f2dc-410c-8a67-c61d8ae70bd4",
+      "title": "Посетить Колизей",
+      "type": "excursion",
+      "date": "2026-12-08",
+      "startTime": "09:00",
+      "endTime": "",
+      "endDate": "2026-12-08",
+      "description": "Посещение Колизея в Риме.",
+      "pointId": "p_1794136944307_p8g4l",
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "Колизей",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": false,
+        "timeExplicit": false
+      },
+      "startAt": "2026-12-08T06:00:00.000Z",
+      "id": "e_1794136944307_ib7g1",
+      "tripId": "trip_1794136783994_im9mq",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T11:22:24.307Z"
+    },
+    {
+      "dayNoteId": "trip_1794136783994_im9mq:58c56801-53cc-475f-b29a-7e00620d37d7",
+      "title": "Поиграть в гольф и выпить кофе",
+      "type": "excursion",
+      "date": "2026-12-08",
+      "startTime": "14:00",
+      "endTime": "",
+      "endDate": "2026-12-16",
+      "description": "Поиграть в гольф и выпить кофе в Сан-Марино.",
+      "pointId": "p_1794136944307_rpi73",
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "Сан-Марино",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": true,
+        "timeExplicit": false
+      },
+      "startAt": "2026-12-08T11:00:00.000Z",
+      "id": "e_1794136944307_p57t6",
+      "tripId": "trip_1794136783994_im9mq",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T11:22:24.307Z",
+      "materials": []
+    },
+    {
+      "title": "Ужина в Ватикане ",
+      "type": "restaurant",
+      "date": "2026-12-08",
+      "startTime": "16:24",
+      "endTime": "17:24",
+      "endDate": "2026-12-08",
+      "pointId": "p_1794137125648_m0lk1",
+      "description": "",
+      "materials": [],
+      "ticket": null,
+      "startAt": "2026-12-08T13:24:00.000Z",
+      "endAt": "2026-12-08T14:24:00.000Z",
+      "id": "e_1794137135131_3q305",
+      "createdAt": "2026-11-08T11:25:35.131Z",
+      "tripId": "trip_1794136783994_im9mq"
+    },
+    {
+      "dayNoteId": "trip_1794059317372_gms0o:895186f1-b12a-4d8f-b6e3-db35dbbe1056",
+      "title": "Кофейня",
+      "type": "restaurant",
+      "date": "2026-12-03",
+      "startTime": "09:00",
+      "endTime": "",
+      "endDate": "2026-12-03",
+      "description": "Место: кофейня (место не найдено)",
+      "pointId": null,
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "кофейня",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": false,
+        "timeExplicit": false
+      },
+      "startAt": "2026-12-03T06:00:00.000Z",
+      "id": "e_1794140319955_8svv5",
+      "tripId": "trip_1794059317372_gms0o",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T12:18:39.955Z"
+    },
+    {
+      "dayNoteId": "trip_1794059317372_gms0o:659177cd-2354-410e-8f69-914fdcdd0123",
+      "title": "Озеро",
+      "type": "excursion",
+      "date": "2026-12-03",
+      "startTime": "14:00",
+      "endTime": "",
+      "endDate": "2026-12-03",
+      "description": "",
+      "pointId": "p_1794140319955_huqyy",
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "Байкал",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": false,
+        "timeExplicit": false
+      },
+      "startAt": "2026-12-03T11:00:00.000Z",
+      "id": "e_1794140319955_m3y06",
+      "tripId": "trip_1794059317372_gms0o",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T12:18:39.955Z"
     }
   ],
   "transfers": [
@@ -646,6 +909,32 @@
       "id": "t_1794055816448_6iqwz",
       "createdAt": "2026-11-07T12:50:16.448Z",
       "tripId": "legacy"
+    },
+    {
+      "fromPointId": "p_1794136944307_p8g4l",
+      "toPointId": "p_1794136944307_rpi73",
+      "mode": "walking",
+      "date": "2026-12-08",
+      "startTime": "15:23",
+      "endDate": "2026-12-08",
+      "endTime": "17:23",
+      "description": "",
+      "id": "t_1794137024380_xk5x0",
+      "createdAt": "2026-11-08T11:23:44.380Z",
+      "tripId": "trip_1794136783994_im9mq"
+    },
+    {
+      "fromPointId": "p_1794136944307_p8g4l",
+      "toPointId": "p_1794137125648_m0lk1",
+      "mode": "plane",
+      "date": "2026-12-08",
+      "startTime": "16:25",
+      "endDate": "2026-12-08",
+      "endTime": "23:25",
+      "description": "И смотреть тикток",
+      "id": "t_1794137163482_4sumd",
+      "createdAt": "2026-11-08T11:26:03.482Z",
+      "tripId": "trip_1794136783994_im9mq"
     }
   ]
 }

@@ -636,4 +636,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`Traveler’s Glider: http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`explore.: http://localhost:${PORT}`));

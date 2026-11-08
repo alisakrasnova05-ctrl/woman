@@ -49,3 +49,10 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--ink)}.topb
 .notes-table-head{padding-bottom:24px}
 .note-row{min-height:74px}
 @media(max-width:650px){.notes-table-head{padding-bottom:20px}.note-row{min-height:82px}}
+
+/* Plan actions remain usable on narrow day cards. */
+.plan-move{flex-wrap:wrap}
+.plan-move label{flex-basis:100%}
+.plan-delete{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-sm);min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--accent-strong);font:600 12px var(--font-body);cursor:pointer}
+.plan-delete:hover{border-color:var(--accent-strong);background:var(--cream)}
+.plan-delete:disabled{opacity:.6;cursor:wait}
