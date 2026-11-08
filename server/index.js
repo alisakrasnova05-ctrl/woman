@@ -354,13 +354,32 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'PATCH' && tripMatch) {
       const body = await parseBody(req);
       const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+      const hasDates = Object.hasOwn(body, 'startDate') || Object.hasOwn(body, 'endDate');
+      const hasCover = Object.hasOwn(body, 'coverUrl');
+      const hasTitle = Object.hasOwn(body, 'title');
       const clearing = body.startDate === null && body.endDate === null;
-      if (!clearing && (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate)) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
+      if (!hasDates && !hasCover && !hasTitle) return sendJson(res,400,{errors:['Нет данных для изменения']});
+      if (hasDates && !clearing && (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate)) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
+      if (hasTitle && (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 60)) return sendJson(res,400,{errors:['Название должно содержать от 1 до 60 символов']});
+      const coverUrl = body.coverUrl;
+      if (hasCover && (typeof coverUrl !== 'string' || !/^\/uploads\/[A-Za-z0-9_-]+\.(?:jpg|png)$/.test(coverUrl) || !fs.existsSync(path.join(UPLOADS, path.basename(coverUrl))))) {
+        return sendJson(res,400,{errors:['Загрузите корректное фото обложки']});
+      }
       const db = readDb(), trip = db.trips.find(t => t.id === tripMatch[1]);
       if(!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
-      if(clearing) Object.assign(trip,{startDate:null,endDate:null,datesConfirmed:false});
-      else Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4)),datesConfirmed:true});
-      writeDb(db); return sendJson(res,200,trip);
+      const previousCover = trip.coverUrl;
+      if (hasDates) {
+        if(clearing) Object.assign(trip,{startDate:null,endDate:null,datesConfirmed:false});
+        else Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4)),datesConfirmed:true});
+      }
+      if (hasCover) trip.coverUrl = coverUrl;
+      if (hasTitle) trip.title = body.title.trim();
+      writeDb(db);
+      if (hasCover && previousCover && previousCover !== coverUrl && !db.trips.some(item => item.coverUrl === previousCover)
+        && /^\/uploads\/[A-Za-z0-9_-]+\.(?:jpg|png)$/.test(previousCover)) {
+        try { fs.unlinkSync(path.join(UPLOADS, path.basename(previousCover))); } catch { /* The cover update has already been saved. */ }
+      }
+      return sendJson(res,200,trip);
     }
     if (req.method === 'POST' && pathname === '/api/trips') {
       const body = await parseBody(req);
@@ -376,13 +395,24 @@ const server = http.createServer(async (req, res) => {
         if(!isCity(found)) return sendJson(res,400,{errors:['Выберите город из списка']});
         city = cityRecord(found);
       } else if (body.cityFallback !== true) return sendJson(res,400,{errors:['Выберите город из списка']});
+      let originCity = null;
+      if (body.originCity?.id) {
+        const found = String(body.originCity.id).startsWith('local-')
+          ? localCities.find(item => item.id === body.originCity.id)
+          : await geocoding('get?' + new URLSearchParams({id:body.originCity.id,language:'ru'}));
+        if (!found || !isCity(found)) return sendJson(res,400,{errors:['Выберите город отправления из списка']});
+        originCity = cityRecord(found);
+      } else if (typeof body.origin === 'string' && body.origin.trim() && body.originFallback !== true) {
+        return sendJson(res,400,{errors:['Выберите город отправления из списка']});
+      }
       const destination = city?.name || body.destination.trim();
+      const origin = originCity?.name || (typeof body.origin === 'string' ? body.origin.trim().slice(0, 100) : '');
       const title = typeof body.title === 'string' ? body.title.trim().slice(0, 60) || destination : destination;
       const coverUrl = typeof body.coverUrl === 'string' ? body.coverUrl : '';
       if (coverUrl && (!/^\/uploads\/[A-Za-z0-9_-]+\.(?:jpg|png)$/.test(coverUrl) || !fs.existsSync(path.join(UPLOADS, path.basename(coverUrl))))) {
         return sendJson(res,400,{errors:['Загрузите корректное фото обложки']});
       }
-      const item = { id: id('trip'), title, destination, coverUrl, city, month: Number(body.month), year: Number(body.year), startDate: null, endDate: null, datesConfirmed: false, createdAt: new Date().toISOString() };
+      const item = { id: id('trip'), title, origin, originCity, destination, coverUrl, city, month: Number(body.month), year: Number(body.year), startDate: null, endDate: null, datesConfirmed: false, createdAt: new Date().toISOString() };
       const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
     }
     if (req.method === 'POST' && pathname === '/api/uploads') {

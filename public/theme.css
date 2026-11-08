@@ -232,6 +232,16 @@ body:has(.page-shell) { background:var(--cream); }
 .trip-delete svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .trip-delete:hover { border-color:var(--accent-strong); background:var(--accent-strong); color:var(--cream); }
 .trip-delete:disabled { opacity:.6; cursor:wait; }
+.trip-cover-edit { position:absolute; top:14px; left:62px; z-index:1; display:grid; width:40px; height:40px; place-items:center; padding:9px; border:1px solid var(--line); border-radius:var(--pill); background:var(--paper); color:var(--teal); }
+.trip-cover-edit svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.trip-cover-edit:hover { border-color:var(--teal); background:var(--teal); color:var(--cream); }
+.trip-cover-edit:disabled { opacity:.6; cursor:wait; }
+.trip-cover-input { display:none!important; }
+.trip-title-line { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:12px; }
+.trip-title-line h3 { margin:0; }
+.trip-title-edit { flex:none; padding:5px 10px; border:1px solid var(--line); border-radius:var(--pill); background:transparent; color:var(--accent-strong); font-size:11px; }
+.trip-title-edit:hover { border-color:var(--accent-strong); background:#f2d4b8; }
+.trip-title-edit:disabled { opacity:.6; cursor:wait; }
 /* Journal identity and motion tokens. */
 :root {
   --icon-museum:#9b432f; --icon-hotel:#655276; --icon-cafe:#805829;
@@ -241,11 +251,9 @@ body:has(.page-shell) { background:var(--cream); }
   --journal-radius:18px; --journal-lift:0 2px 0 #1f3b3d18;
   --stamp-font:var(--font-body); --route-line:var(--sage);
 }
-.history-footer { display:flex; justify-content:center; margin-top:24px; }
-.history-footer .add-btn { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
-.create-panel #tripForm { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:end; }
+.create-panel #tripForm { grid-template-columns:repeat(4,minmax(0,1fr)); align-items:end; }
 .create-panel #tripForm > label input { width:100%; margin-top:7px; padding:0 12px; }
-.create-panel #tripForm .cover-upload { grid-column:1 / span 2; min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 12px; align-items:center; }
+.create-panel #tripForm .cover-upload { grid-column:1 / span 3; min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 12px; align-items:center; }
 .create-panel .cover-upload > span { grid-column:1 / -1; margin:0; color:var(--sand); }
 .create-panel .cover-upload input[type=file] { grid-column:1; margin:0; padding:7px; color:var(--ink); background:var(--paper); font-size:12px; }
 .cover-upload input[type=file]::file-selector-button { margin-right:8px; padding:6px 10px; border:1px solid var(--line); border-radius:var(--pill); background:#efe3d1; color:var(--ink); font:inherit; cursor:pointer; }
@@ -254,6 +262,9 @@ body:has(.page-shell) { background:var(--cream); }
 .cover-upload img[hidden] { display:none; }
 .trip-card .cover.has-cover { background:var(--teal); }
 .trip-card .cover.has-cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.trip-card.has-cover .cover { padding:0; }
+.trip-card.has-cover .cover::before,.trip-card.has-cover .cover::after { display:none!important; content:none!important; }
+.trip-card.has-cover .cover > :not(img),.trip-card.has-cover .trip-arrow { display:none!important; }
 .trip-title-field { min-width:0; }
 .range-prompt { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 14px; padding:14px 16px; border:1px solid var(--teal); border-radius:var(--radius-sm); background:var(--teal); color:var(--cream); }
 .range-prompt[hidden] { display:none; }

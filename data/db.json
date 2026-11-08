@@ -1,327 +1,538 @@
 {
-  "trips": [
-    {
-      "id": "trip_1794058626028_22gqj",
-      "title": "казань",
-      "destination": "казань",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T13:37:06.029Z"
-    },
-    {
-      "id": "trip_1794059317372_gms0o",
-      "title": "байкал",
-      "destination": "байкал",
-      "month": 12,
-      "year": 2026,
-      "startDate": "2026-12-02",
-      "endDate": "2026-12-10",
-      "createdAt": "2026-11-07T13:48:37.372Z"
-    },
-    {
-      "id": "trip_1794059335136_hiy5m",
-      "title": "байкал",
-      "destination": "байкал",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-20",
-      "createdAt": "2026-11-07T13:48:55.136Z"
-    },
-    {
-      "id": "trip_1794060343786_l113c",
-      "title": "пыавп",
-      "destination": "пыавп",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T14:05:43.787Z"
-    },
-    {
-      "id": "trip_1794060353046_rf1wg",
-      "title": "пыавп",
-      "destination": "пыавп",
-      "month": 10,
-      "year": 2026,
-      "startDate": "2026-10-30",
-      "endDate": "2026-11-11",
-      "createdAt": "2026-11-07T14:05:53.046Z"
-    },
-    {
-      "id": "trip_1794060357796_p83z0",
-      "title": "мсчмсчм",
-      "destination": "мсчмсчм",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T14:05:57.796Z"
-    },
-    {
-      "id": "trip_1794061122691_9fqqo",
-      "title": "Кейптаун",
-      "destination": "Кейптаун",
-      "city": {
-        "id": 3369157,
-        "name": "Кейптаун",
-        "country": "ЮАР",
-        "admin1": "Западно-Капская провинция",
-        "latitude": -33.92584,
-        "longitude": 18.42322,
-        "timezone": "Africa/Johannesburg"
-      },
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T14:18:42.691Z"
-    },
-    {
-      "id": "trip_1794061557332_afxdx",
-      "title": "Чебоксарово",
-      "destination": "Чебоксарово",
-      "city": {
-        "id": 569699,
-        "name": "Чебоксарово",
-        "country": "Россия",
-        "admin1": "Оренбургская Область",
-        "latitude": 52.83333,
-        "longitude": 54.16667,
-        "timezone": "Asia/Yekaterinburg"
-      },
-      "month": 9,
-      "year": 2027,
-      "startDate": "2027-09-01",
-      "endDate": "2027-09-04",
-      "createdAt": "2026-11-07T14:25:57.332Z"
-    },
-    {
-      "id": "trip_1794061787949_p1ddj",
-      "title": "Осиново",
-      "destination": "Осиново",
-      "city": {
-        "id": 514460,
-        "name": "Осиново",
-        "country": "Россия",
-        "admin1": "Татарстан",
-        "latitude": 55.8809,
-        "longitude": 48.881,
-        "timezone": "Europe/Moscow"
-      },
-      "month": 9,
-      "year": 2027,
-      "startDate": "2027-09-01",
-      "endDate": "2027-09-04",
-      "createdAt": "2026-11-07T14:29:47.949Z"
-    },
-    {
-      "id": "trip_1794060914640_p58y5",
-      "title": "оналтытмл",
-      "destination": "оналтытмл",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T14:15:14.640Z"
-    },
-    {
-      "id": "trip_1794061873720_znle2",
-      "title": "Байкал",
-      "destination": "Байкал",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T14:31:13.720Z"
-    },
-    {
-      "id": "trip_1794064126493_ve3e2",
-      "title": "Казань",
-      "destination": "Казань",
-      "city": null,
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T15:08:46.493Z"
-    },
-    {
-      "id": "trip_1794064248435_md47z",
-      "title": "Астрахань",
-      "destination": "Астрахань",
-      "city": null,
-      "month": 3,
-      "year": 2026,
-      "startDate": "2026-03-06",
-      "endDate": "2026-03-20",
-      "createdAt": "2026-11-07T15:10:48.435Z"
-    },
-    {
-      "id": "trip_1794122942455_g6nfn",
-      "title": "Иркутск",
-      "destination": "Иркутск",
-      "city": {
-        "id": "local-irkutsk",
-        "name": "Иркутск",
-        "country": "Россия",
-        "admin1": "Иркутская область",
-        "latitude": 52.2864,
-        "longitude": 104.2807,
-        "timezone": "Asia/Irkutsk"
-      },
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-20",
-      "createdAt": "2026-11-08T07:29:02.456Z"
-    },
-    {
-      "id": "trip_1794123092385_gzl0a",
-      "title": "Оренбург",
-      "destination": "Оренбург",
-      "city": {
-        "id": 515003,
-        "name": "Оренбург",
-        "country": "Россия",
-        "admin1": "Оренбургская Область",
-        "latitude": 51.76712,
-        "longitude": 55.09883,
-        "timezone": "Asia/Yekaterinburg"
-      },
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-14",
-      "endDate": "2026-11-21",
-      "createdAt": "2026-11-08T07:31:32.385Z"
-    }
-  ],
-  "attractions": [
-    {
-      "id": "a1",
-      "name": "Казанский кремль",
-      "lat": 55.7982,
-      "lng": 49.1056,
-      "description": "Историко-архитектурный ансамбль в центре Казани с белокаменными стенами и башнями.",
-      "photos": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Kazan_Kremlin_01.jpg/640px-Kazan_Kremlin_01.jpg",
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Kazan_Kremlin_Qolsharif_Mosque.jpg/640px-Kazan_Kremlin_Qolsharif_Mosque.jpg"
-      ],
-      "reviews": [
-        {
-          "id": "r1",
-          "name": "Анна",
-          "rating": 5,
-          "text": "Очень красивое место, лучше приходить утром."
-        },
-        {
-          "id": "r2",
-          "name": "Илья",
-          "rating": 4,
-          "text": "Много истории и отличные виды на город."
-        }
-      ],
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "a2",
-      "name": "Мечеть Кул-Шариф",
-      "lat": 55.7984,
-      "lng": 49.1052,
-      "description": "Главная мечеть Казанского кремля с узнаваемыми голубыми куполами.",
-      "photos": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Qolsharif_mosque_Kazan.jpg/640px-Qolsharif_mosque_Kazan.jpg"
-      ],
-      "reviews": [
-        {
-          "id": "r3",
-          "name": "Мария",
-          "rating": 5,
-          "text": "Впечатляющая архитектура и свет внутри."
-        }
-      ],
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "a3",
-      "name": "Улица Баумана",
-      "lat": 55.7879,
-      "lng": 49.1221,
-      "description": "Пешеходная улица с кафе, историческими зданиями и уличными музыкантами.",
-      "photos": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Baumana_street_Kazan.jpg/640px-Baumana_street_Kazan.jpg"
-      ],
-      "reviews": [
-        {
-          "id": "r4",
-          "name": "Дмитрий",
-          "rating": 4,
-          "text": "Отличный маршрут для вечерней прогулки."
-        }
-      ],
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "a4",
-      "name": "Дворец земледельцев",
-      "lat": 55.8004,
-      "lng": 49.1075,
-      "description": "Парадное здание у Кремлёвской набережной с большим бронзовым деревом на фасаде.",
-      "photos": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Palace_of_Farmers_Kazan.jpg/640px-Palace_of_Farmers_Kazan.jpg"
-      ],
-      "reviews": [
-        {
-          "id": "r5",
-          "name": "Олег",
-          "rating": 5,
-          "text": "Красиво подсвечивается вечером."
-        }
-      ],
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "a5",
-      "name": "Кремлёвская набережная",
-      "lat": 55.8025,
-      "lng": 49.1088,
-      "description": "Просторная прогулочная зона вдоль Казанки с видами на Кремль.",
-      "photos": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Kremlevskaya_embankment_Kazan.jpg/640px-Kremlevskaya_embankment_Kazan.jpg"
-      ],
-      "reviews": [
-        {
-          "id": "r6",
-          "name": "Светлана",
-          "rating": 5,
-          "text": "Приятно гулять на закате."
-        }
-      ],
-      "timezone": "Europe/Moscow"
-    },
-    {
-      "id": "a6",
-      "name": "Храм всех религий",
-      "lat": 55.8178,
-      "lng": 48.9749,
-      "description": "Необычный архитектурный комплекс в посёлке Старое Аракчино.",
-      "photos": [
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Temple_of_All_Religions_Kazan.jpg/640px-Temple_of_All_Religions_Kazan.jpg"
-      ],
-      "reviews": [
-        {
-          "id": "r7",
-          "name": "Николай",
-          "rating": 4,
-          "text": "Необычное место, стоит заложить время на дорогу."
-        }
-      ],
-      "timezone": "Europe/Moscow"
-    }
-  ],
-  "points": [],
-  "events": [],
-  "transfers": []
+    "trips":  [
+                  {
+                      "id":  "trip_1794058626028_22gqj",
+                      "title":  "казань",
+                      "destination":  "казань",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T13:37:06.029Z"
+                  },
+                  {
+                      "id":  "trip_1794059317372_gms0o",
+                      "title":  "байкал",
+                      "destination":  "байкал",
+                      "month":  12,
+                      "year":  2026,
+                      "startDate":  "2026-12-02",
+                      "endDate":  "2026-12-10",
+                      "createdAt":  "2026-11-07T13:48:37.372Z"
+                  },
+                  {
+                      "id":  "trip_1794059335136_hiy5m",
+                      "title":  "байкал",
+                      "destination":  "байкал",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-06",
+                      "endDate":  "2026-11-20",
+                      "createdAt":  "2026-11-07T13:48:55.136Z"
+                  },
+                  {
+                      "id":  "trip_1794060343786_l113c",
+                      "title":  "пыавп",
+                      "destination":  "пыавп",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T14:05:43.787Z"
+                  },
+                  {
+                      "id":  "trip_1794060353046_rf1wg",
+                      "title":  "пыавп",
+                      "destination":  "пыавп",
+                      "month":  10,
+                      "year":  2026,
+                      "startDate":  "2026-10-30",
+                      "endDate":  "2026-11-11",
+                      "createdAt":  "2026-11-07T14:05:53.046Z"
+                  },
+                  {
+                      "id":  "trip_1794060357796_p83z0",
+                      "title":  "мсчмсчм",
+                      "destination":  "мсчмсчм",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T14:05:57.796Z"
+                  },
+                  {
+                      "id":  "trip_1794061122691_9fqqo",
+                      "title":  "Кейптаун",
+                      "destination":  "Кейптаун",
+                      "city":  {
+                                   "id":  3369157,
+                                   "name":  "Кейптаун",
+                                   "country":  "ЮАР",
+                                   "admin1":  "Западно-Капская провинция",
+                                   "latitude":  -33.92584,
+                                   "longitude":  18.42322,
+                                   "timezone":  "Africa/Johannesburg"
+                               },
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T14:18:42.691Z"
+                  },
+                  {
+                      "id":  "trip_1794061557332_afxdx",
+                      "title":  "Чебоксарово",
+                      "destination":  "Чебоксарово",
+                      "city":  {
+                                   "id":  569699,
+                                   "name":  "Чебоксарово",
+                                   "country":  "Россия",
+                                   "admin1":  "Оренбургская Область",
+                                   "latitude":  52.83333,
+                                   "longitude":  54.16667,
+                                   "timezone":  "Asia/Yekaterinburg"
+                               },
+                      "month":  9,
+                      "year":  2027,
+                      "startDate":  "2027-09-01",
+                      "endDate":  "2027-09-04",
+                      "createdAt":  "2026-11-07T14:25:57.332Z"
+                  },
+                  {
+                      "id":  "trip_1794061787949_p1ddj",
+                      "title":  "Осиново",
+                      "destination":  "Осиново",
+                      "city":  {
+                                   "id":  514460,
+                                   "name":  "Осиново",
+                                   "country":  "Россия",
+                                   "admin1":  "Татарстан",
+                                   "latitude":  55.8809,
+                                   "longitude":  48.881,
+                                   "timezone":  "Europe/Moscow"
+                               },
+                      "month":  9,
+                      "year":  2027,
+                      "startDate":  "2027-09-01",
+                      "endDate":  "2027-09-04",
+                      "createdAt":  "2026-11-07T14:29:47.949Z"
+                  },
+                  {
+                      "id":  "trip_1794060914640_p58y5",
+                      "title":  "оналтытмл",
+                      "destination":  "оналтытмл",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T14:15:14.640Z"
+                  },
+                  {
+                      "id":  "trip_1794061873720_znle2",
+                      "title":  "Байкал",
+                      "destination":  "Байкал",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T14:31:13.720Z"
+                  },
+                  {
+                      "id":  "trip_1794064126493_ve3e2",
+                      "title":  "Казань",
+                      "destination":  "Казань",
+                      "city":  null,
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T15:08:46.493Z"
+                  },
+                  {
+                      "id":  "trip_1794064248435_md47z",
+                      "title":  "Астрахань",
+                      "destination":  "Астрахань",
+                      "city":  null,
+                      "month":  3,
+                      "year":  2026,
+                      "startDate":  "2026-03-06",
+                      "endDate":  "2026-03-20",
+                      "createdAt":  "2026-11-07T15:10:48.435Z"
+                  },
+                  {
+                      "id":  "trip_1794122942455_g6nfn",
+                      "title":  "Иркутск",
+                      "destination":  "Иркутск",
+                      "city":  {
+                                   "id":  "local-irkutsk",
+                                   "name":  "Иркутск",
+                                   "country":  "Россия",
+                                   "admin1":  "Иркутская область",
+                                   "latitude":  52.2864,
+                                   "longitude":  104.2807,
+                                   "timezone":  "Asia/Irkutsk"
+                               },
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-06",
+                      "endDate":  "2026-11-20",
+                      "createdAt":  "2026-11-08T07:29:02.456Z"
+                  },
+                  {
+                      "id":  "trip_1794123092385_gzl0a",
+                      "title":  "Оренбург",
+                      "destination":  "Оренбург",
+                      "city":  {
+                                   "id":  515003,
+                                   "name":  "Оренбург",
+                                   "country":  "Россия",
+                                   "admin1":  "Оренбургская Область",
+                                   "latitude":  51.76712,
+                                   "longitude":  55.09883,
+                                   "timezone":  "Asia/Yekaterinburg"
+                               },
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-14",
+                      "endDate":  "2026-11-21",
+                      "createdAt":  "2026-11-08T07:31:32.385Z"
+                  },
+                  {
+                      "id":  "legacy",
+                      "title":  "Москва",
+                      "destination":  "Москва",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-06",
+                      "endDate":  "2026-11-20"
+                  },
+                  {
+                      "id":  "trip_1794058231236_khoz5",
+                      "title":  "казань",
+                      "destination":  "казань",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-03",
+                      "endDate":  "2026-11-11",
+                      "createdAt":  "2026-11-07T13:30:31.237Z"
+                  },
+                  {
+                      "id":  "trip_1794059257202_6gzxt",
+                      "title":  "байкал",
+                      "destination":  "байкал",
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-01",
+                      "endDate":  "2026-11-04",
+                      "createdAt":  "2026-11-07T13:47:37.202Z"
+                  },
+                  {
+                      "id":  "trip_1794128774175_57x15",
+                      "title":  "Осень",
+                      "destination":  "Казань",
+                      "coverUrl":  "/uploads/photo_1794130286060_1glob.jpg",
+                      "city":  {
+                                   "id":  "local-kazan",
+                                   "name":  "Казань",
+                                   "country":  "Россия",
+                                   "admin1":  "Татарстан",
+                                   "latitude":  55.7961,
+                                   "longitude":  49.1064,
+                                   "timezone":  "Europe/Moscow"
+                               },
+                      "month":  11,
+                      "year":  2026,
+                      "startDate":  "2026-11-04",
+                      "endDate":  "2026-11-13",
+                      "datesConfirmed":  true,
+                      "createdAt":  "2026-11-08T09:06:14.175Z"
+                  }
+              ],
+    "attractions":  [
+                        {
+                            "id":  "a1",
+                            "name":  "Казанский кремль",
+                            "lat":  55.7982,
+                            "lng":  49.1056,
+                            "description":  "Историко-архитектурный ансамбль в центре Казани с белокаменными стенами и башнями.",
+                            "photos":  [
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Kazan_Kremlin_01.jpg/640px-Kazan_Kremlin_01.jpg",
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Kazan_Kremlin_Qolsharif_Mosque.jpg/640px-Kazan_Kremlin_Qolsharif_Mosque.jpg"
+                                       ],
+                            "reviews":  [
+                                            {
+                                                "id":  "r1",
+                                                "name":  "Анна",
+                                                "rating":  5,
+                                                "text":  "Очень красивое место, лучше приходить утром."
+                                            },
+                                            {
+                                                "id":  "r2",
+                                                "name":  "Илья",
+                                                "rating":  4,
+                                                "text":  "Много истории и отличные виды на город."
+                                            }
+                                        ],
+                            "timezone":  "Europe/Moscow"
+                        },
+                        {
+                            "id":  "a2",
+                            "name":  "Мечеть Кул-Шариф",
+                            "lat":  55.7984,
+                            "lng":  49.1052,
+                            "description":  "Главная мечеть Казанского кремля с узнаваемыми голубыми куполами.",
+                            "photos":  [
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Qolsharif_mosque_Kazan.jpg/640px-Qolsharif_mosque_Kazan.jpg"
+                                       ],
+                            "reviews":  [
+                                            {
+                                                "id":  "r3",
+                                                "name":  "Мария",
+                                                "rating":  5,
+                                                "text":  "Впечатляющая архитектура и свет внутри."
+                                            }
+                                        ],
+                            "timezone":  "Europe/Moscow"
+                        },
+                        {
+                            "id":  "a3",
+                            "name":  "Улица Баумана",
+                            "lat":  55.7879,
+                            "lng":  49.1221,
+                            "description":  "Пешеходная улица с кафе, историческими зданиями и уличными музыкантами.",
+                            "photos":  [
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Baumana_street_Kazan.jpg/640px-Baumana_street_Kazan.jpg"
+                                       ],
+                            "reviews":  [
+                                            {
+                                                "id":  "r4",
+                                                "name":  "Дмитрий",
+                                                "rating":  4,
+                                                "text":  "Отличный маршрут для вечерней прогулки."
+                                            }
+                                        ],
+                            "timezone":  "Europe/Moscow"
+                        },
+                        {
+                            "id":  "a4",
+                            "name":  "Дворец земледельцев",
+                            "lat":  55.8004,
+                            "lng":  49.1075,
+                            "description":  "Парадное здание у Кремлёвской набережной с большим бронзовым деревом на фасаде.",
+                            "photos":  [
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Palace_of_Farmers_Kazan.jpg/640px-Palace_of_Farmers_Kazan.jpg"
+                                       ],
+                            "reviews":  [
+                                            {
+                                                "id":  "r5",
+                                                "name":  "Олег",
+                                                "rating":  5,
+                                                "text":  "Красиво подсвечивается вечером."
+                                            }
+                                        ],
+                            "timezone":  "Europe/Moscow"
+                        },
+                        {
+                            "id":  "a5",
+                            "name":  "Кремлёвская набережная",
+                            "lat":  55.8025,
+                            "lng":  49.1088,
+                            "description":  "Просторная прогулочная зона вдоль Казанки с видами на Кремль.",
+                            "photos":  [
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Kremlevskaya_embankment_Kazan.jpg/640px-Kremlevskaya_embankment_Kazan.jpg"
+                                       ],
+                            "reviews":  [
+                                            {
+                                                "id":  "r6",
+                                                "name":  "Светлана",
+                                                "rating":  5,
+                                                "text":  "Приятно гулять на закате."
+                                            }
+                                        ],
+                            "timezone":  "Europe/Moscow"
+                        },
+                        {
+                            "id":  "a6",
+                            "name":  "Храм всех религий",
+                            "lat":  55.8178,
+                            "lng":  48.9749,
+                            "description":  "Необычный архитектурный комплекс в посёлке Старое Аракчино.",
+                            "photos":  [
+                                           "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Temple_of_All_Religions_Kazan.jpg/640px-Temple_of_All_Religions_Kazan.jpg"
+                                       ],
+                            "reviews":  [
+                                            {
+                                                "id":  "r7",
+                                                "name":  "Николай",
+                                                "rating":  4,
+                                                "text":  "Необычное место, стоит заложить время на дорогу."
+                                            }
+                                        ],
+                            "timezone":  "Europe/Moscow"
+                        }
+                    ],
+    "points":  [
+                   {
+                       "id":  "p1",
+                       "name":  "Красная площадь",
+                       "lat":  55.7539,
+                       "lng":  37.6208,
+                       "description":  "Центр Москвы",
+                       "timezone":  "Europe/Moscow",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "id":  "p2",
+                       "name":  "Третьяковская галерея",
+                       "lat":  55.7415,
+                       "lng":  37.6208,
+                       "description":  "Музей русского искусства",
+                       "timezone":  "Europe/Moscow",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "id":  "p3",
+                       "name":  "Патриаршие пруды",
+                       "lat":  55.7666,
+                       "lng":  37.5922,
+                       "description":  "Прогулочная зона",
+                       "timezone":  "Europe/Moscow",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "id":  "p_1794045844712_9t33a",
+                       "name":  "тлот",
+                       "lat":  55.790883,
+                       "lng":  49.122233,
+                       "description":  "",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "id":  "p_1794058165022_015fn",
+                       "name":  "дом",
+                       "lat":  55.759167,
+                       "lng":  37.61605,
+                       "description":  "",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "id":  "p_1794045865320_7gn1k",
+                       "name":  "Аэропорт Казани",
+                       "lat":  55.772698,
+                       "lng":  37.626053,
+                       "description":  "",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "id":  "p_1794058301794_rk319",
+                       "name":  "аэропорт",
+                       "lat":  55.768993,
+                       "lng":  37.607338,
+                       "description":  "",
+                       "tripId":  "legacy"
+                   }
+               ],
+    "events":  [
+                   {
+                       "title":  "ужин",
+                       "type":  "excursion",
+                       "date":  "2025-06-12",
+                       "startTime":  "23:33",
+                       "endTime":  "23:44",
+                       "endDate":  "2025-06-12",
+                       "pointId":  null,
+                       "attractionId":  null,
+                       "description":  "",
+                       "bookingUrl":  "",
+                       "materials":  [
+
+                                     ],
+                       "startAt":  "2025-06-12T20:33:00.000Z",
+                       "endAt":  "2025-06-12T20:44:00.000Z",
+                       "id":  "e_1794055626909_zveij",
+                       "createdAt":  "2026-11-07T12:47:06.909Z",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "title":  "влвльвьлвл",
+                       "type":  "excursion",
+                       "date":  "2025-06-12",
+                       "startTime":  "12:00",
+                       "endTime":  "12:06",
+                       "endDate":  "2025-06-12",
+                       "pointId":  "p3",
+                       "description":  "швышовошвышовы",
+                       "materials":  [
+                                         "/uploads/photo_1794057288235_f0eql.jpg"
+                                     ],
+                       "id":  "e_1794057288242_y0l3o",
+                       "createdAt":  "2026-11-07T13:14:48.242Z"
+                   },
+                   {
+                       "title":  "оилрирлпи",
+                       "type":  "excursion",
+                       "date":  "2025-06-12",
+                       "startTime":  "12:00",
+                       "endTime":  "13:00",
+                       "endDate":  "2025-06-12",
+                       "pointId":  "p_1794058301794_rk319",
+                       "attractionId":  null,
+                       "description":  "ляляляля",
+                       "materials":  [
+                                         "/uploads/photo_1794058310110_g38jd.jpg"
+                                     ],
+                       "startAt":  "2025-06-12T09:00:00.000Z",
+                       "endAt":  "2025-06-12T10:00:00.000Z",
+                       "id":  "e_1794058310113_awaaj",
+                       "createdAt":  "2026-11-07T13:31:50.113Z",
+                       "tripId":  "legacy"
+                   },
+                   {
+                       "dayNoteId":  "trip_1794128774175_57x15:3f13c35b-f301-479f-aa96-63590b989b1a",
+                       "title":  "прогулка",
+                       "type":  "other",
+                       "date":  "2026-11-12",
+                       "startTime":  "10:53",
+                       "endTime":  "11:25",
+                       "endDate":  "2026-11-12",
+                       "description":  "",
+                       "pointId":  null,
+                       "bookingUrl":  "",
+                       "ticket":  null,
+                       "startAt":  "2026-11-12T07:53:00.000Z",
+                       "endAt":  "2026-11-12T08:25:00.000Z",
+                       "id":  "e_1794129591208_ive76",
+                       "tripId":  "trip_1794128774175_57x15",
+                       "source":  "day-notes",
+                       "createdAt":  "2026-11-08T09:19:51.208Z"
+                   }
+               ],
+    "transfers":  [
+                      {
+                          "fromPointId":  "p1",
+                          "toPointId":  "p2",
+                          "mode":  "walking",
+                          "date":  "2025-06-12",
+                          "startTime":  "14:00",
+                          "endDate":  "2025-06-12",
+                          "endTime":  "14:50",
+                          "description":  "",
+                          "id":  "t_1794045105841_k6ff0",
+                          "createdAt":  "2026-11-07T09:51:45.842Z",
+                          "tripId":  "legacy"
+                      },
+                      {
+                          "fromPointId":  "p3",
+                          "toPointId":  "p1",
+                          "mode":  "car",
+                          "date":  "2025-06-12",
+                          "startTime":  "15:44",
+                          "endDate":  "2025-06-12",
+                          "endTime":  "16:07",
+                          "description":  "",
+                          "id":  "t_1794055816448_6iqwz",
+                          "createdAt":  "2026-11-07T12:50:16.448Z",
+                          "tripId":  "legacy"
+                      }
+                  ]
 }
