@@ -222,7 +222,7 @@
         <input type="text" aria-label="Событие и место" placeholder="Например, музей или прогулка по набережной" value="${escapeAttr(item.title || '')}" data-field="title">
         <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">${item.place ? escapeAttr(item.place.name)+' — найдено на карте' : 'Без точки'}</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
         <div class="ticket-cell ${item.ticket ? 'has-ticket' : ''}">
-          <input class="ticket-file-input" type="file" accept=".pdf,image/*" aria-label="Выбрать файл билета" tabindex="-1">
+          <input class="ticket-file-input" type="file" accept=".pdf,image/jpeg,image/png" aria-label="Выбрать файл билета" tabindex="-1">
           <button class="ticket-pick" type="button" title="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}" aria-label="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 7.1-7.1a3.5 3.5 0 0 1 5 5L10 20.5a5 5 0 0 1-7.1-7.1L13 3.3"/></svg><span>${item.ticket ? '' : 'Прикрепить'}</span></button>
           ${item.ticket ? `<button class="ticket-download" type="button" title="Скачать: ${escapeAttr(item.ticket.name)}">${escapeAttr(item.ticket.name)}</button><button class="ticket-remove" type="button" aria-label="Удалить билет" title="Удалить билет">×</button>` : ''}
         </div>
@@ -255,6 +255,20 @@
         if (!note) return;
         const attachmentId = createTicketId();
         try {
+          if (['image/jpeg', 'image/png'].includes(file.type)) {
+            const formData = new FormData();
+            formData.append('photos', file);
+            const response = await fetch('/api/uploads', { method: 'POST', body: formData });
+            const uploaded = await response.json();
+            if (!response.ok) throw new Error(uploaded.error || 'Не удалось загрузить изображение билета.');
+            if (!(notes[rowDate] || []).includes(note)) return;
+            const oldId = note.ticket?.id;
+            note.ticket = { url: uploaded[0].url, name: file.name, type: file.type, size: file.size };
+            persistNotes();
+            if (oldId) removeTicketFile(oldId).catch(() => {});
+            renderNotes();
+            return;
+          }
           await saveTicketFile(attachmentId, file);
           if (!(notes[rowDate] || []).includes(note)) {
             await removeTicketFile(attachmentId);
@@ -274,6 +288,13 @@
         const attachment = notes[rowDate]?.[rowIndex]?.ticket;
         if (!attachment) return;
         try {
+          if (attachment.url) {
+            const link = document.createElement('a');
+            link.href = attachment.url;
+            link.download = attachment.name || 'ticket';
+            link.click();
+            return;
+          }
           const stored = await getTicketFile(attachment.id);
           if (!stored?.file) throw new Error('Файл билета не найден. Прикрепите его ещё раз.');
           const objectUrl = URL.createObjectURL(stored.file);

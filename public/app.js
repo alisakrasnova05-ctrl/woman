@@ -15,6 +15,9 @@ let resumeEventAfterPoint = false;
 let eventMaterials = [];
 let pendingPhotos = [];
 let photoPreviewUrls = [];
+let eventTicket = null;
+let pendingTicket = null;
+let ticketPreviewUrl = null;
 
 const map = L.map('map').setView([25, 10], 2);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -438,9 +441,13 @@ function openEventForm(event) {
   photoPreviewUrls = [];
   pendingPhotos = [];
   eventMaterials = [...(event?.materials || [])];
+  eventTicket = event?.ticket ? { ...event.ticket } : null;
+  pendingTicket = null;
   $('#eventForm').reset();
   $('#formError').textContent = '';
   $('#photoPreview').innerHTML = '';
+  if (ticketPreviewUrl) URL.revokeObjectURL(ticketPreviewUrl);
+  ticketPreviewUrl = null;
   $('#eventId').value = event?.id || '';
   $('#formTitle').textContent = event ? 'Редактировать событие' : 'Новое событие';
   if (event) {
@@ -453,6 +460,7 @@ function openEventForm(event) {
     $('#endDate').value = selectedDate;
   }
   renderPhotoPreview();
+  renderTicketPreview();
   $('#eventDialog').showModal();
 }
 
@@ -517,6 +525,20 @@ $('#pickPointBtn').onclick = () => {
   if ($('#eventDialog').open) $('#eventDialog').close();
 };
 
+$('#ticketImage').onchange = () => {
+  const file = $('#ticketImage').files?.[0];
+  if (!file) return;
+  if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    $('#formError').textContent = 'Выберите изображение билета JPG или PNG не больше 10 МБ.';
+    $('#ticketImage').value = '';
+    return;
+  }
+  $('#formError').textContent = '';
+  pendingTicket = file;
+  $('#ticketImage').value = '';
+  renderTicketPreview();
+};
+
 $('#photoFiles').onchange = () => {
   const selectedPhotos = [...$('#photoFiles').files];
   const invalidPhoto = selectedPhotos.find((photo) => (
@@ -545,6 +567,7 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     pointId: $('#pointId').value || null,
     description: $('#description').value,
     materials: [...eventMaterials],
+    ticket: eventTicket,
   };
 
   try {
@@ -552,6 +575,10 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     if (pendingPhotos.length) {
       const uploadedPhotos = await uploadPhotos(pendingPhotos);
       data.materials.push(...uploadedPhotos.map((photo) => photo.url));
+    }
+    if (pendingTicket) {
+      const [uploadedTicket] = await uploadPhotos([pendingTicket]);
+      data.ticket = { url: uploadedTicket.url, name: pendingTicket.name, type: pendingTicket.type, size: pendingTicket.size };
     }
     await api(id ? `/api/events/${id}` : '/api/events', {
       method: id ? 'PUT' : 'POST',
@@ -562,6 +589,8 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     $('#eventDialog').close();
     pendingPhotos = [];
     eventMaterials = [];
+    eventTicket = null;
+    pendingTicket = null;
     render();
   } catch (error) {
     $('#formError').textContent = error.message;
@@ -691,6 +720,7 @@ function featureCard(event, continuation = false) {
       ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
       ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">${GliderIcons.icon("ticket")} Бронь / билет</a></div>` : ''}
       ${photos ? `<div class="materials">${photos}</div>` : ''}
+      ${event.ticket?.url ? `<a class="ticket-image" href="${esc(event.ticket.url)}" target="_blank" rel="noopener" title="Открыть изображение входного билета"><img src="${esc(event.ticket.url)}" alt="${esc(event.ticket.name || 'Изображение входного билета')}" onerror="this.style.display='none'"><span>Входной билет</span></a>` : ''}
     </article>
   `;
 }
@@ -736,6 +766,39 @@ async function uploadPhotos(files) {
   const result = await response.json();
   if (!response.ok) throw Error(result.error || 'Не удалось загрузить фотографии');
   return result;
+}
+
+function renderTicketPreview() {
+  if (ticketPreviewUrl) URL.revokeObjectURL(ticketPreviewUrl);
+  ticketPreviewUrl = pendingTicket ? URL.createObjectURL(pendingTicket) : null;
+  const ticket = pendingTicket
+    ? { url: ticketPreviewUrl, name: pendingTicket.name }
+    : eventTicket ? { ...eventTicket, name: eventTicket.name || 'Входной билет' } : null;
+  const preview = $('#ticketPreview');
+  preview.replaceChildren();
+  if (ticket) {
+    const item = document.createElement('div');
+    item.className = 'photo-preview-item';
+    const image = document.createElement('img');
+    if (ticket.url) {
+      image.src = ticket.url;
+      image.alt = ticket.name;
+      item.append(image);
+    } else {
+      item.textContent = ticket.name;
+    }
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', 'Убрать изображение билета');
+    remove.textContent = '×';
+    remove.addEventListener('click', () => {
+      if (pendingTicket) pendingTicket = null;
+      else eventTicket = null;
+      renderTicketPreview();
+    });
+    item.append(image, remove);
+    preview.append(item);
+  }
 }
 
 function closePointForm() {
