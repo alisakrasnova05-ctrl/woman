@@ -278,6 +278,11 @@ const server = http.createServer(async (req, res) => {
       } catch { /* Use the built-in city list when the geocoding service is offline. */ }
       return sendJson(res,200,localCityMatches(name).map(cityRecord));
     }
+    if (req.method === 'GET' && pathname === '/api/openapi.json') {
+      const specPath = path.join(PUBLIC, 'openapi.json');
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      return fs.createReadStream(specPath).pipe(res);
+    }
     if (req.method === 'GET' && pathname === '/api/trips') {
       const db = readDb();
       return sendJson(res, 200, db.trips.map((trip) => ({
@@ -585,6 +590,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       const requestedPath = pathname === '/'
         ? '/home.html'
+        : pathname === '/api-docs' || pathname === '/api-docs/'
+          ? '/api-docs.html'
         : pathname === '/trip'
           ? '/index.html'
           : pathname === '/planner'

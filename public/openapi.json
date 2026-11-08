@@ -1,0 +1,348 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Traveler’s Glider API",
+    "version": "1.0.0",
+    "description": "REST API для поездок, событий, точек маршрута и перемещений. Для данных конкретной поездки передавайте её идентификатор в query-параметре `tripId` при работе с точками, событиями и перемещениями."
+  },
+  "servers": [{ "url": "/", "description": "Текущий сервер" }],
+  "tags": [
+    { "name": "Поездки" },
+    { "name": "Города" },
+    { "name": "Точки" },
+    { "name": "События" },
+    { "name": "Перемещения" },
+    { "name": "Фотографии" }
+  ],
+  "paths": {
+    "/api/cities": {
+      "get": {
+        "tags": ["Города"],
+        "summary": "Найти города",
+        "description": "Ищет сначала во встроенном списке городов, затем через Open-Meteo Geocoding API.",
+        "parameters": [{ "name": "name", "in": "query", "required": false, "description": "Строка поиска (от 2 символов). Без параметра или при коротком запросе вернётся пустой массив.", "schema": { "type": "string", "minLength": 2 }, "example": "Москва" }],
+        "responses": {
+          "200": { "description": "Подходящие города; пустой массив, если совпадений нет.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/City" } } } } }
+        }
+      }
+    },
+    "/api/trips": {
+      "get": {
+        "tags": ["Поездки"],
+        "summary": "Список поездок",
+        "responses": { "200": { "description": "Поездки со счётчиками точек, событий и дней.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/TripSummary" } } } } } }
+      },
+      "post": {
+        "tags": ["Поездки"],
+        "summary": "Создать поездку",
+        "description": "Передайте выбранный объект `city` или установите `cityFallback: true`, если создаёте поездку без выбора из списка. Для непустого `origin` аналогично используйте `originCity` либо `originFallback: true`.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTrip" } } } },
+        "responses": {
+          "201": { "description": "Поездка создана.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Trip" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "500": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    },
+    "/api/trips/{tripId}": {
+      "parameters": [{ "$ref": "#/components/parameters/TripId" }],
+      "patch": {
+        "tags": ["Поездки"],
+        "summary": "Изменить поездку",
+        "description": "Можно изменить название, диапазон дат и/или обложку. Чтобы очистить даты, передайте `startDate` и `endDate` со значением `null`.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateTrip" } } } },
+        "responses": {
+          "200": { "description": "Обновлённая поездка.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Trip" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      },
+      "delete": {
+        "tags": ["Поездки"],
+        "summary": "Удалить поездку",
+        "description": "Удаляет поездку и связанные с ней точки, события и перемещения.",
+        "responses": {
+          "200": { "description": "Поездка удалена.", "content": { "application/json": { "schema": { "type": "object", "properties": { "id": { "type": "string" }, "deleted": { "type": "boolean", "example": true } }, "required": ["id", "deleted"] } } } },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    },
+    "/api/trips/{tripId}/parse-plans": {
+      "parameters": [{ "$ref": "#/components/parameters/TripId" }],
+      "post": {
+        "tags": ["Поездки"],
+        "summary": "Разобрать текст планов на события",
+        "description": "Возвращает до 8 событий с распознанными временем и местом. При настроенном LLM используется модель, иначе — эвристический разбор. Распознанное место может быть `null`, если геокодирование не нашло координаты.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["text", "date"], "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 10000, "example": "Утром музей, в 19:30 ужин на Арбате" }, "date": { "type": "string", "format": "date", "example": "2026-07-12" } } } } } },
+        "responses": {
+          "200": { "description": "Результат разбора.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParsedPlans" } } } },
+          "400": { "$ref": "#/components/responses/ApiError" },
+          "404": { "$ref": "#/components/responses/ApiError" },
+          "429": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    },
+    "/api/trips/{tripId}/day-events": {
+      "parameters": [{ "$ref": "#/components/parameters/TripId" }],
+      "put": {
+        "tags": ["События", "Поездки"],
+        "summary": "Сохранить события дня из черновика",
+        "description": "Заменяет ранее сохранённые события `day-notes` этой поездки указанным списком. Допускается до 200 событий. Повторный `dayNoteId` отклоняется.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["events"], "properties": { "events": { "type": "array", "maxItems": 200, "items": { "$ref": "#/components/schemas/DayEventInput" } } } } } } },
+        "responses": {
+          "200": { "description": "Сохранённые события.", "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } }, "required": ["events"] } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    },
+    "/api/points": {
+      "get": {
+        "tags": ["Точки"],
+        "summary": "Список точек",
+        "parameters": [{ "$ref": "#/components/parameters/TripQuery" }],
+        "responses": { "200": { "description": "Точки маршрута.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Point" } } } } } }
+      },
+      "post": {
+        "tags": ["Точки"],
+        "summary": "Создать точку",
+        "parameters": [{ "$ref": "#/components/parameters/TripQuery" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PointInput" } } } },
+        "responses": {
+          "201": { "description": "Точка создана.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Point" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/points/{pointId}": {
+      "parameters": [{ "$ref": "#/components/parameters/PointId" }, { "$ref": "#/components/parameters/TripQuery" }],
+      "put": {
+        "tags": ["Точки"],
+        "summary": "Изменить точку",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PointInput" } } } },
+        "responses": {
+          "200": { "description": "Обновлённая точка.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Point" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      },
+      "delete": {
+        "tags": ["Точки"],
+        "summary": "Удалить точку",
+        "description": "Удаляет связанные перемещения и очищает `pointId` у связанных событий.",
+        "responses": { "204": { "$ref": "#/components/responses/NoContent" } }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": ["События"],
+        "summary": "Список событий",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripQuery" },
+          { "name": "date", "in": "query", "required": false, "description": "Оставить события, которые идут в указанную дату, включая многодневные.", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "События поездки.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } }
+      },
+      "post": {
+        "tags": ["События"],
+        "summary": "Создать событие",
+        "parameters": [{ "$ref": "#/components/parameters/TripQuery" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EventInput" } } } },
+        "responses": {
+          "201": { "description": "Событие создано.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/events/{eventId}": {
+      "parameters": [{ "$ref": "#/components/parameters/EventId" }, { "$ref": "#/components/parameters/TripQuery" }],
+      "put": {
+        "tags": ["События"],
+        "summary": "Изменить событие",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EventInput" } } } },
+        "responses": {
+          "200": { "description": "Обновлённое событие.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      },
+      "delete": {
+        "tags": ["События"],
+        "summary": "Удалить событие",
+        "responses": { "204": { "$ref": "#/components/responses/NoContent" } }
+      }
+    },
+    "/api/transfers": {
+      "get": {
+        "tags": ["Перемещения"],
+        "summary": "Список перемещений",
+        "parameters": [
+          { "$ref": "#/components/parameters/TripQuery" },
+          { "name": "date", "in": "query", "required": false, "description": "Оставить перемещения, которые идут в указанную дату, включая многодневные.", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "Перемещения поездки.", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Transfer" } } } } } }
+      },
+      "post": {
+        "tags": ["Перемещения"],
+        "summary": "Создать перемещение",
+        "parameters": [{ "$ref": "#/components/parameters/TripQuery" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransferInput" } } } },
+        "responses": {
+          "201": { "description": "Перемещение создано.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Transfer" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/transfers/{transferId}": {
+      "parameters": [{ "$ref": "#/components/parameters/TransferId" }, { "$ref": "#/components/parameters/TripQuery" }],
+      "put": {
+        "tags": ["Перемещения"],
+        "summary": "Изменить перемещение",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransferInput" } } } },
+        "responses": {
+          "200": { "description": "Обновлённое перемещение.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Transfer" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      },
+      "delete": {
+        "tags": ["Перемещения"],
+        "summary": "Удалить перемещение",
+        "responses": { "204": { "$ref": "#/components/responses/NoContent" } }
+      }
+    },
+    "/api/uploads": {
+      "post": {
+        "tags": ["Фотографии"],
+        "summary": "Загрузить фотографии",
+        "description": "Загружает до 10 изображений JPG/PNG. До 10 МБ на файл и 20 МБ на весь запрос. Используйте полученный `url` как `coverUrl` или ссылку материала.",
+        "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "required": ["photos"], "properties": { "photos": { "type": "array", "maxItems": 10, "items": { "type": "string", "format": "binary" } } } }, "encoding": { "photos": { "contentType": "image/jpeg, image/png" } } } } },
+        "responses": {
+          "201": { "description": "Загруженные файлы.", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "object", "properties": { "url": { "type": "string", "example": "/uploads/photo_abc.jpg" } }, "required": ["url"] } } } } },
+          "400": { "$ref": "#/components/responses/ApiError" },
+          "413": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    },
+    "/uploads/{filename}": {
+      "get": {
+        "tags": ["Фотографии"],
+        "summary": "Получить загруженную фотографию",
+        "parameters": [{ "name": "filename", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+\\.(jpg|png)$" } }],
+        "responses": {
+          "200": { "description": "Файл изображения.", "content": { "image/jpeg": { "schema": { "type": "string", "format": "binary" } }, "image/png": { "schema": { "type": "string", "format": "binary" } } } },
+          "404": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "TripId": { "name": "tripId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "trip_1730000000000_ab123" },
+      "PointId": { "name": "pointId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "p_1730000000000_ab123" },
+      "EventId": { "name": "eventId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "e_1730000000000_ab123" },
+      "TransferId": { "name": "transferId", "in": "path", "required": true, "schema": { "type": "string" }, "example": "t_1730000000000_ab123" },
+      "TripQuery": { "name": "tripId", "in": "query", "required": false, "description": "Идентификатор поездки; ограничивает точки, события и перемещения этой поездкой.", "schema": { "type": "string" }, "example": "trip_1730000000000_ab123" }
+    },
+    "responses": {
+      "ApiError": { "description": "Ошибка запроса.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } },
+      "ValidationError": { "description": "Ошибка валидации.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ValidationError" } } } },
+      "NoContent": { "description": "Удалено (ответ без тела)." }
+    },
+    "schemas": {
+      "ApiError": { "type": "object", "properties": { "error": { "type": "string", "example": "Путешествие не найдено" } }, "required": ["error"] },
+      "ValidationError": { "type": "object", "properties": { "errors": { "type": "array", "items": { "type": "string" }, "example": ["Название точки обязательно"] } }, "required": ["errors"] },
+      "City": {
+        "type": "object",
+        "properties": {
+          "id": { "oneOf": [{ "type": "integer" }, { "type": "string" }], "example": "local-moscow" },
+          "name": { "type": "string", "example": "Москва" },
+          "country": { "type": "string", "example": "Россия" },
+          "admin1": { "type": "string", "nullable": true, "example": "Москва" },
+          "latitude": { "type": "number", "example": 55.7558 },
+          "longitude": { "type": "number", "example": 37.6173 },
+          "timezone": { "type": "string", "example": "Europe/Moscow" }
+        },
+        "required": ["id", "name", "latitude", "longitude"]
+      },
+      "Trip": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }, "title": { "type": "string" }, "origin": { "type": "string" }, "originCity": { "allOf": [{ "$ref": "#/components/schemas/City" }], "nullable": true },
+          "destination": { "type": "string" }, "coverUrl": { "type": "string" }, "city": { "allOf": [{ "$ref": "#/components/schemas/City" }], "nullable": true },
+          "month": { "type": "integer", "minimum": 1, "maximum": 12 }, "year": { "type": "integer" }, "startDate": { "type": "string", "format": "date", "nullable": true }, "endDate": { "type": "string", "format": "date", "nullable": true },
+          "datesConfirmed": { "type": "boolean" }, "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "title", "destination", "month", "year", "datesConfirmed", "createdAt"]
+      },
+      "TripSummary": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Trip" },
+          { "type": "object", "properties": { "startDate": { "type": "string", "format": "date", "nullable": true }, "endDate": { "type": "string", "format": "date", "nullable": true }, "pointsCount": { "type": "integer" }, "eventsCount": { "type": "integer" }, "days": { "type": "integer" } } }
+        ]
+      },
+      "CreateTrip": {
+        "type": "object",
+        "required": ["destination", "month", "year"],
+        "properties": {
+          "destination": { "type": "string", "example": "Москва" }, "title": { "type": "string", "maxLength": 60 }, "origin": { "type": "string", "maxLength": 100 },
+          "city": { "allOf": [{ "$ref": "#/components/schemas/City" }], "nullable": true }, "cityFallback": { "type": "boolean", "description": "Установите true, если поездка создаётся без выбранного объекта city." },
+          "originCity": { "allOf": [{ "$ref": "#/components/schemas/City" }], "nullable": true }, "originFallback": { "type": "boolean" },
+          "month": { "type": "integer", "minimum": 1, "maximum": 12, "example": 7 }, "year": { "type": "integer", "minimum": 1900, "example": 2026 }, "coverUrl": { "type": "string", "example": "/uploads/photo_abc.jpg" }
+        }
+      },
+      "UpdateTrip": {
+        "type": "object", "minProperties": 1,
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "maxLength": 60 }, "startDate": { "type": "string", "format": "date", "nullable": true }, "endDate": { "type": "string", "format": "date", "nullable": true }, "coverUrl": { "type": "string", "example": "/uploads/photo_abc.jpg" }
+        },
+        "description": "Для сброса диапазона дат задайте оба поля дат как null."
+      },
+      "Point": {
+        "allOf": [{ "$ref": "#/components/schemas/PointInput" }, { "type": "object", "properties": { "id": { "type": "string" }, "tripId": { "type": "string" } }, "required": ["id"] }]
+      },
+      "PointInput": {
+        "type": "object", "required": ["name", "lat", "lng"],
+        "properties": { "name": { "type": "string", "minLength": 1, "example": "Красная площадь" }, "lat": { "type": "number", "minimum": -90, "maximum": 90, "example": 55.7539 }, "lng": { "type": "number", "minimum": -180, "maximum": 180, "example": 37.6208 }, "description": { "type": "string", "example": "Вход со стороны Манежной площади" } }
+      },
+      "EventInput": {
+        "type": "object", "required": ["title", "date", "startTime"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1, "example": "Экскурсия по Кремлю" }, "type": { "type": "string", "enum": ["excursion", "stay", "restaurant", "meeting", "other"] },
+          "date": { "type": "string", "format": "date", "example": "2026-07-12" }, "startTime": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$", "example": "10:00" }, "endTime": { "type": "string", "example": "12:00" }, "endDate": { "type": "string", "format": "date" },
+          "pointId": { "type": "string", "nullable": true }, "description": { "type": "string" }, "bookingUrl": { "type": "string", "format": "uri" }, "materials": { "type": "array", "items": { "type": "string" } },
+          "ticket": { "type": "object", "nullable": true, "description": "Метаданные прикреплённого билета.", "properties": { "id": { "type": "string" }, "url": { "type": "string" }, "name": { "type": "string" }, "type": { "type": "string" }, "size": { "type": "integer" } }, "additionalProperties": true }
+        }
+      },
+      "Event": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EventInput" },
+          { "type": "object", "properties": { "id": { "type": "string" }, "tripId": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" }, "startAt": { "type": "string", "format": "date-time" }, "endAt": { "type": "string", "format": "date-time" }, "source": { "type": "string", "example": "day-notes" }, "dayNoteId": { "type": "string" } }, "required": ["id"] }
+        ]
+      },
+      "DayEventInput": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EventInput" },
+          { "type": "object", "required": ["dayNoteId"], "properties": { "dayNoteId": { "type": "string" }, "place": { "type": "object", "nullable": true, "properties": { "name": { "type": "string" }, "lat": { "type": "number", "minimum": -90, "maximum": 90 }, "lng": { "type": "number", "minimum": -180, "maximum": 180 }, "address": { "type": "string" } }, "required": ["name", "lat", "lng"] } } }
+        ]
+      },
+      "TransferInput": {
+        "type": "object", "required": ["fromPointId", "toPointId", "mode", "date", "startTime", "endTime"],
+        "properties": {
+          "fromPointId": { "type": "string" }, "toPointId": { "type": "string" }, "mode": { "type": "string", "enum": ["walking", "car", "train", "plane", "other"] },
+          "date": { "type": "string", "format": "date" }, "startTime": { "type": "string", "example": "09:00" }, "endDate": { "type": "string", "format": "date" }, "endTime": { "type": "string", "example": "11:30" }, "description": { "type": "string" }
+        }
+      },
+      "Transfer": {
+        "allOf": [
+          { "$ref": "#/components/schemas/TransferInput" },
+          { "type": "object", "properties": { "id": { "type": "string" }, "tripId": { "type": "string" }, "createdAt": { "type": "string", "format": "date-time" } }, "required": ["id"] }
+        ]
+      },
+      "ParsedPlans": {
+        "type": "object", "required": ["items", "source"],
+        "properties": { "source": { "type": "string", "enum": ["llm", "heuristic"] }, "items": { "type": "array", "maxItems": 8, "items": { "type": "object", "required": ["title", "placeName", "date", "startTime", "type", "description", "place"], "properties": { "title": { "type": "string" }, "placeName": { "type": "string" }, "date": { "type": "string", "format": "date" }, "startTime": { "type": "string" }, "type": { "type": "string", "enum": ["excursion", "stay", "restaurant", "meeting", "other"] }, "description": { "type": "string" }, "place": { "type": "object", "nullable": true, "properties": { "name": { "type": "string" }, "lat": { "type": "number" }, "lng": { "type": "number" }, "address": { "type": "string" } } } } } } }
+      }
+    }
+  }
+}
