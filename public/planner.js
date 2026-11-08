@@ -348,9 +348,26 @@
         return result.json();
       }));
       const managed=tripEvents.filter(e=>e.source==='day-notes');
-      if(!localStorage.getItem(draftKey) && managed.length){
-        notes={};for(const e of managed){(notes[e.date]||=[]).push({...e,dayNoteId:e.dayNoteId});}
-        committed=JSON.parse(JSON.stringify(notes));localStorage.setItem(draftKey,JSON.stringify(notes));localStorage.setItem(committedKey,JSON.stringify(committed));dirty=false;
+      // The map is allowed to edit or delete calendar-created events. When
+      // there is no unsaved local draft, refresh the planner from the server
+      // so a later calendar save cannot restore stale event values.
+      if(!dirty){
+        notes={};
+        for(const event of managed){
+          (notes[event.date]||=[]).push({
+            ...event,
+            startTime:event.startTime||'',
+            endTime:event.endTime||'',
+            dayNoteId:event.dayNoteId,
+          });
+        }
+        for(const rows of Object.values(notes)) rows.sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
+        committed=JSON.parse(JSON.stringify(notes));
+        try{
+          localStorage.setItem(draftKey,JSON.stringify(notes));
+          localStorage.setItem(committedKey,JSON.stringify(committed));
+        }catch{}
+        dirty=false;
       }
       $('.intro h1').textContent = trip.title;
       document.title = `${trip.title} — календарь · Traveler's Glider`;
