@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 
-let attractions=[],userPosition=null,userMarker=null,watchId=null;
+let userPosition=null,userMarker=null,watchId=null;
 let points = [];
 let events = [];
 let transfers = [];
@@ -84,15 +84,10 @@ async function init() {
     L.marker([city.latitude, city.longitude], {title:city.name}).addTo(map).bindPopup(esc(city.name));
     if (!points.length) document.querySelector('.map-hint').textContent = 'Добавьте первую точку маршрута';
   }
-  attractions=await api('/api/attractions');
-  $('#attractionId').innerHTML='<option value="">Без экскурсионной точки</option>'+attractions.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
-  renderAttractions();
-  (trip.city ? [] : attractions).forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
   const availableDates = dates();
   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
   fillPointSelects();
   render();
-  window.loadCitySights(map, trip, async () => {await loadData();fillPointSelects();selectedDate=trip.startDate || dates()[0];render();});
 }
 
 function fillPointSelects() {
@@ -464,7 +459,6 @@ $('#eventForm').onsubmit = async (submitEvent) => {
     endTime: $('#endTime').value,
     endDate: $('#endDate').value || $('#date').value,
     pointId: $('#pointId').value || null,
-    attractionId: $('#attractionId').value || null,
     description: $('#description').value,
     materials: [...eventMaterials],
   };
@@ -588,7 +582,6 @@ function distanceKm(a,b){const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLon=(b.lng
 function fmtDistance(k){return k<1?Math.round(k*1000)+' м':k.toFixed(1)+' км'}
 function offsetFor(tz){try{const parts=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'longOffset'}).formatToParts(new Date());return parts.find(x=>x.type==='timeZoneName')?.value.replace('GMT','UTC')||tz}catch{return tz}}
 function featureCard(event, continuation = false) {
-  const attraction = attractions.find((item) => item.id === event.attractionId);
   const point = points.find((item) => item.id === event.pointId);
   const photos = (event.materials || [])
     .filter(Boolean)
@@ -601,10 +594,6 @@ function featureCard(event, continuation = false) {
   const endDate = !continuation && event.endDate && event.endDate !== event.date
     ? ` · до ${esc(event.endDate)}`
     : '';
-  const attractionPhotos = (attraction?.photos || []).slice(0, 3)
-    .map((photo) => `<img src="${esc(photo)}" alt="" onerror="this.style.display='none'">`)
-    .join('');
-
   return `
     <article class="timeline-item event ${selectedKey === itemKey('event', event.id) ? 'selected' : ''}" data-kind="event" data-id="${esc(event.id)}">
       <div class="event-actions">
@@ -615,20 +604,13 @@ function featureCard(event, continuation = false) {
       <div class="event-title">${esc(event.title)}</div>
       <div class="event-meta">${point ? `📍 ${esc(point.name)}` : 'Без геоточки'}</div>
       ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
-      ${attraction ? `<div class="event-meta">📸 ${esc(attraction.name)}</div><div class="materials">${attractionPhotos}</div>` : ''}
       ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
       ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">🎟 Бронь / билет</a></div>` : ''}
       ${photos ? `<div class="materials">${photos}</div>` : ''}
     </article>
   `;
 }
-function renderAttractions(){$('#attractions').innerHTML=attractions.map(a=>`<div class="attraction-card" data-attraction="${a.id}"><img src="${a.photos?.[0]||''}" onerror="this.style.display='none'"><b>${esc(a.name)}</b><span class="stars">${stars(avg(a))}</span></div>`).join('');document.querySelectorAll('[data-attraction]').forEach(el=>el.onclick=()=>openAttraction(el.dataset.attraction));}
-function avg(a){const r=a.reviews||[];return r.length?r.reduce((x,y)=>x+y.rating,0)/r.length:0}
-function stars(n){return '★★★★★'.slice(0,Math.round(n))+'☆☆☆☆☆'.slice(0,5-Math.round(n))}
-function openAttraction(id){const a=attractions.find(x=>x.id===id);if(!a)return;$('#placeContent').innerHTML=`<h2>${esc(a.name)}</h2><div class="place-photos">${(a.photos||[]).map(u=>`<img src="${u}" onerror="this.style.display='none'">`).join('')}</div><p>${esc(a.description)}</p><div class="stars">${stars(avg(a))} <small>${avg(a).toFixed(1)} / 5 (${(a.reviews||[]).length})</small></div><h3>Отзывы</h3>${(a.reviews||[]).map(r=>`<div class="review"><strong>${esc(r.name)} · <span class="stars">${stars(r.rating)}</span></strong><p>${esc(r.text)}</p></div>`).join('')}`;$('#reviewForm').dataset.attraction=id;$('#reviewForm').reset();$('#reviewError').textContent='';$('#attractionDialog').showModal();const m=attractionMarkers[id];if(m){map.setView([a.lat,a.lng],15);m.openPopup()}}
-const attractionMarkers={};
-
-$('#locateBtn').onclick=locate;setInterval(()=>{updateClock();document.querySelectorAll('.timeline-item[data-kind="event"]').forEach(el=>{const e=events.find(e=>e.id===el.dataset.id);if(e)el.querySelector('.event-time')?.classList.toggle('now-badge',isNow(e))})},1000);updateClock();$('#placeClose').onclick=()=>$('#attractionDialog').close();$('#reviewForm').onsubmit=async ev=>{ev.preventDefault();const id=ev.currentTarget.dataset.attraction;try{await api('/api/attractions/'+id+'/reviews',{method:'POST',body:JSON.stringify({name:$('#reviewName').value,rating:Number($('#reviewRating').value),text:$('#reviewText').value})});attractions=await api('/api/attractions');renderAttractions();openAttraction(id)}catch(e){$('#reviewError').textContent=e.message}};
+$('#locateBtn').onclick=locate;setInterval(()=>{updateClock();document.querySelectorAll('.timeline-item[data-kind="event"]').forEach(el=>{const e=events.find(e=>e.id===el.dataset.id);if(e)el.querySelector('.event-time')?.classList.toggle('now-badge',isNow(e))})},1000);updateClock();
 
 init().catch((error) => {
   $('#timeline').innerHTML = `<div class="error">Не удалось загрузить данные: ${esc(error.message)}</div>`;

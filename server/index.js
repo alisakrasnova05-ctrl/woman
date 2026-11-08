@@ -284,7 +284,6 @@ const server = http.createServer(async (req, res) => {
       const item = { id: id('trip'), title: city?.name || body.destination.trim(), destination: city?.name || body.destination.trim(), city, month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
       const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
     }
-    if(req.method==='GET'&&pathname==='/api/attractions')return sendJson(res,200,readDb().attractions||[]);const ar=pathname.match(/^\/api\/attractions\/([^/]+)\/reviews$/);if(ar&&req.method==='POST'){const b=await parseBody(req);if(!b.name?.trim()||!Number.isInteger(Number(b.rating))||Number(b.rating)<1||Number(b.rating)>5||!b.text?.trim())return sendJson(res,400,{errors:['Имя, оценка от 1 до 5 и текст обязательны']});const d=readDb(),a=(d.attractions||[]).find(x=>x.id===ar[1]);if(!a)return sendJson(res,404,{error:'Точка не найдена'});const review={id:'r_'+Date.now(),name:b.name.trim(),rating:Number(b.rating),text:b.text.trim()};a.reviews=[...(a.reviews||[]),review];writeDb(d);return sendJson(res,201,review)}
     if (req.method === 'POST' && pathname === '/api/uploads') {
       const body = await readRequestBuffer(req, MAX_UPLOAD_BYTES);
       const files = parseMultipartFiles(body, req.headers['content-type'] || '');

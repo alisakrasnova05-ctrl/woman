@@ -22,7 +22,6 @@
             <button id="addTransferBtn" class="secondary" type="button">↔ Перемещение</button>
           </div>
         </div>
-        <h3 class="subhead">Экскурсионные точки Казани</h3><div id="attractions" class="attractions"></div>
         <div id="days" class="days"></div>
         <div id="timeline"></div>
       </section>
@@ -83,7 +82,6 @@
           <select id="pointId"><option value="">Без геоточки</option></select>
         </label>
         <button type="button" id="addPointFromEventBtn" class="inline-add-point">＋ Создать точку</button>
-        <label>Экскурсионная точка (необязательно)<select id="attractionId"><option value="">Без экскурсионной точки</option></select></label>
         <label>Описание<textarea id="description" rows="3"></textarea></label>
         <label>Фотографии
           <input type="file" id="photoFiles" accept="image/jpeg,image/png" multiple>
@@ -139,25 +137,7 @@
       </form>
     </dialog>
 
-    <dialog id="attractionDialog">
-        <div class="place-dialog"><button class="place-close" id="placeClose">×</button>
-            <div id="placeContent"></div>
-            <form id="reviewForm">
-                <h3>Оставить отзыв</h3>
-                <div class="review-row"><input id="reviewName" placeholder="Ваше имя" required><select
-                        id="reviewRating">
-                        <option value="5">★★★★★</option>
-                        <option value="4">★★★★☆</option>
-                        <option value="3">★★★☆☆</option>
-                        <option value="2">★★☆☆☆</option>
-                        <option value="1">★☆☆☆☆</option>
-                    </select></div><textarea id="reviewText" placeholder="Ваш отзыв" required></textarea><button
-                    class="primary">Опубликовать</button>
-                <div id="reviewError" class="error"></div>
-            </form>
-        </div>
-    </dialog>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/city-sights.js"></script><script src="/app.js"></script>
+    <script src="/app.js"></script>
   </body>
 </html>
