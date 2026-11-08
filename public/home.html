@@ -16,7 +16,7 @@
       <nav class="site-nav" aria-label="Навигация">
         <a href="#trips">Мои путешествия</a>
       </nav>
-    <span class="brand-tagline">Планы обретают крылья</span></header>
+    </header>
     <main>
       <section class="create-panel">
         <div>
@@ -29,7 +29,7 @@
           <label class="origin-field"><span>ОТКУДА</span><div class="destination-field"><input id="origin" type="text" maxlength="100" placeholder="Город отправления" autocomplete="off"></div></label>
           <label class="destination"><span>КУДА</span><div class="destination-field"><input id="destination" placeholder="Казань, Санкт-Петербург, Байкал" autocomplete="off"></div></label>
           <label class="trip-title-field"><span>НАЗВАНИЕ ПОЕЗДКИ</span><input id="tripTitle" type="text" maxlength="60" placeholder="Например, Летние каникулы"></label>
-          <label class="cover-upload"><span>ФОТО ДЛЯ ОБЛОЖКИ</span><input id="coverFile" type="file" accept="image/jpeg,image/png"><small id="coverFileName">Выберите JPG или PNG, до 10 МБ</small><img id="coverPreview" alt="Предпросмотр обложки" hidden></label>
+          <label class="cover-upload"><span>ФОТО ДЛЯ ОБЛОЖКИ</span><input id="coverFile" type="file" accept="image/jpeg,image/png"><button id="coverPickButton" class="cover-pick" type="button">Выбрать файл</button><small id="coverFileName">Файл не выбран</small><small class="cover-hint">JPG или PNG · до 10 МБ</small><img id="coverPreview" alt="Предпросмотр обложки" hidden></label>
           <button class="add-btn">Добавить</button>
           <div id="formError" class="error"></div>
         </form>

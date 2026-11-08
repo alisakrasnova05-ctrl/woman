@@ -19,7 +19,7 @@
         <span>Карта маршрута</span><span class="link-arrow">↗</span>
       </a>
       <a href="/" class="map-link">← На главную</a>
-    <span class="brand-tagline">Планы обретают крылья</span></header>
+    </header>
 
     <main class="page-shell">
       <section class="intro">
@@ -78,14 +78,11 @@
         </div>
         <div class="notes-actions">
           <button id="addEventBtn" class="add-button" type="button"><span>＋</span> Добавить событие</button>
-          <a class="map-action" href="/trip" aria-label="Открыть карту маршрута">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
-            <span>Карта маршрута</span>
-          </a>
+          <button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button>
         </div>
+        <p id="daySaveStatus" class="day-save-status" role="status" aria-live="polite"></p>
       </section>
 
-      <div class="day-save-actions"><p id="daySaveStatus" role="status" aria-live="polite"></p><button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button></div>
       <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
     </main>
     <script src="/journal-icons.js"></script>

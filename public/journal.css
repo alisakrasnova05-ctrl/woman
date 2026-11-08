@@ -41,6 +41,10 @@ button[aria-busy=true]::before {content:'';display:inline-block;width:13px;heigh
 .city-marker {background:var(--teal);color:var(--cream);border-color:var(--sage)}
 .sight-marker {background:var(--paper);color:var(--teal);border-color:var(--sage)}
 .sight-marker svg {width:18px;height:18px}
+.sight-marker {display:grid!important;place-items:center;background:transparent!important;border:0!important;box-shadow:none!important}
+.sight-marker-symbol {display:grid;width:30px;height:30px;place-items:center;border:1.5px solid var(--teal);border-radius:50%;background:var(--paper);color:var(--accent-strong);box-shadow:0 1px 2px #1f3b3d35}
+.sight-marker-symbol svg {width:16px;height:16px}
+.sight-marker:hover .sight-marker-symbol {background:var(--cream);transform:scale(1.08)}
 .journal-route {animation:journal-reveal var(--motion-slow) var(--motion-ease)}
 .journal-enter {animation:journal-arrive var(--motion-slow) var(--motion-ease) both;animation-delay:calc(var(--journal-order,0) * var(--motion-stagger))}
 .journal-toast {position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;display:flex;align-items:center;gap:12px;padding:14px 22px;border:1px solid var(--sage);border-radius:var(--pill);background:var(--teal);color:var(--cream);pointer-events:none}

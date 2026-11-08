@@ -14,7 +14,7 @@
     <header>
       <a class="brand" href="/" style="text-decoration:none"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></a>
       <div class="trip">Москва · 12–14 июня 2025</div>
-    <nav class="site-nav" aria-label="Навигация"><a href="/">На главную</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div><span class="brand-tagline">Планы обретают крылья</span></header>
+    <nav class="site-nav" aria-label="Навигация"><a href="/">На главную</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
 
     <main>
       <section class="sidebar">
@@ -31,10 +31,16 @@
         <div id="timeline"></div>
       </section>
 
-      <section class="map-wrap">
-        <div id="map"></div>
-        <div class="map-hint">Нажмите на точку или перемещение, чтобы открыть подробности</div>
-      </section>
+      <div class="map-column">
+        <section class="map-wrap">
+          <div id="map"></div>
+          <div class="map-hint">Нажмите на точку или перемещение, чтобы открыть подробности</div>
+        </section>
+        <section class="attractions-panel" aria-labelledby="attractionsTitle">
+          <div class="attractions-heading"><h2 id="attractionsTitle">Достопримечательности</h2><span id="sightsStatus" role="status" aria-live="polite">Загружаем…</span></div>
+          <div id="attractions" class="sights-grid"><div class="sights-empty">Загружаем достопримечательности…</div></div>
+        </section>
+      </div>
     </main>
 
     <dialog id="pointDialog">

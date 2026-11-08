@@ -256,6 +256,11 @@ body:has(.page-shell) { background:var(--cream); }
 .create-panel #tripForm .cover-upload { grid-column:1 / span 3; min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px 12px; align-items:center; }
 .create-panel .cover-upload > span { grid-column:1 / -1; margin:0; color:var(--sand); }
 .create-panel .cover-upload input[type=file] { grid-column:1; margin:0; padding:7px; color:var(--ink); background:var(--paper); font-size:12px; }
+.create-panel .cover-upload input[type=file] { display:none!important; }
+.create-panel .cover-upload .cover-pick { justify-self:start; min-height:38px; padding:7px 15px; border:1px solid var(--sage); border-radius:var(--pill); background:transparent; color:var(--cream); font-size:12px; font-weight:600; }
+.create-panel .cover-upload .cover-pick:hover { border-color:var(--sand); background:var(--sand); color:var(--ink); }
+.create-panel .cover-upload #coverFileName { grid-column:1/-1; justify-self:start; margin:0; color:var(--cream); font-size:12px; font-weight:500; letter-spacing:0; }
+.create-panel .cover-upload .cover-hint { grid-column:1/-1; margin:0; color:#e2d7c6; font-size:10px; font-weight:400; letter-spacing:0; }
 .cover-upload input[type=file]::file-selector-button { margin-right:8px; padding:6px 10px; border:1px solid var(--line); border-radius:var(--pill); background:#efe3d1; color:var(--ink); font:inherit; cursor:pointer; }
 .cover-upload small { color:var(--cream); font-size:11px; }
 .cover-upload img { grid-column:1 / -1; width:100%; height:100px; object-fit:cover; border:1px solid var(--sage); border-radius:var(--radius-sm); }
@@ -266,6 +271,15 @@ body:has(.page-shell) { background:var(--cream); }
 .trip-card.has-cover .cover::before,.trip-card.has-cover .cover::after { display:none!important; content:none!important; }
 .trip-card.has-cover .cover > :not(img),.trip-card.has-cover .trip-arrow { display:none!important; }
 .trip-title-field { min-width:0; }
+.create-panel #tripForm > label { text-align:left; }
+.create-panel #tripForm .selects { display:grid; grid-template-columns:minmax(0,1fr) 100px; gap:8px; width:100%; margin:7px 0 0; }
+.create-panel #tripForm .selects select { min-width:0; width:100%; margin:0; }
+.create-panel #tripForm :is(.origin-field,.destination) .destination-field { margin-top:7px; }
+.create-panel #tripForm :is(.origin-field,.destination) .destination-field input { width:100%; margin:0; font:400 14px var(--font-body); letter-spacing:normal; }
+.create-panel #tripForm .trip-title-field input { font:400 14px var(--font-body); letter-spacing:normal; }
+.history-head { align-items:center; justify-content:flex-start; gap:14px; }
+.history-head .eyebrow { margin:0; line-height:1.2; }
+.history-head .count { display:inline-flex; align-self:center; align-items:center; min-height:34px; padding:6px 13px; border:1px solid var(--line); border-radius:var(--pill); background:#efe3d1; color:var(--teal); font-size:12px; font-weight:700; white-space:nowrap; }
 .range-prompt { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 0 14px; padding:14px 16px; border:1px solid var(--teal); border-radius:var(--radius-sm); background:var(--teal); color:var(--cream); }
 .range-prompt[hidden] { display:none; }
 .range-prompt strong,.range-prompt small { display:block; }
@@ -277,4 +291,29 @@ body:has(.page-shell) { background:var(--cream); }
   .create-panel #tripForm > * { width:100%; }
   .create-panel #tripForm .cover-upload { width:100%; grid-template-columns:1fr; }
   .create-panel .cover-upload > span,.create-panel .cover-upload img { grid-column:1; }
+  .create-panel .cover-upload .cover-hint { grid-column:1; }
+  body:has(.map-column) main { grid-template-columns:minmax(0,1fr); height:auto; min-height:0; }
+  .map-column { order:-1; }
+  body:has(.map-column) .map-wrap { flex:none; height:54dvh; min-height:280px; }
+  .attractions-panel { flex:0 0 auto; max-height:220px; border-top:0; }
+  .sights-grid { grid-template-columns:repeat(auto-fill,minmax(135px,1fr)); }
 }
+body:has(.map-column) main { grid-template-columns:minmax(390px,430px) minmax(0,1fr); height:calc(100dvh - 80px); min-height:560px; }
+.map-column { display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--cream); }
+body:has(.map-column) .map-wrap { flex:1 1 auto; min-height:0; overflow:hidden; }
+body:has(.map-column) #map { height:100%; min-height:0; }
+.attractions-panel { display:flex; flex:0 0 150px; min-height:0; flex-direction:column; gap:7px; overflow:hidden; padding:20px 14px 10px; border:1px solid var(--line); border-top:0; background:var(--paper); }
+.attractions-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.attractions-heading h2 { margin:0; color:var(--teal); font:400 18px/1.25 var(--font-heading); text-align:left; }
+#sightsStatus { color:var(--muted); font-size:10px; line-height:1.4; text-align:right; }
+.sights-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:8px; min-height:0; overflow:auto; align-content:start; }
+.sight-card { min-width:0; overflow:hidden; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--cream); }
+.sight-card img,.sight-card-art { display:block; width:100%; height:58px; object-fit:cover; background:#efe3d1; }
+.sight-card-art { display:grid; place-items:center; color:var(--accent-strong); font-size:21px; }
+.sight-card-copy { padding:6px 8px 8px; }
+.sight-card h3 { overflow:hidden; margin:0; color:var(--teal); font:600 11px var(--font-body); text-overflow:ellipsis; white-space:nowrap; }
+.sight-card p { display:-webkit-box; overflow:hidden; margin:3px 0 0; color:var(--muted); font-size:9px; line-height:1.3; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.sight-card button { margin:5px 0 0; padding:0; border:0; background:transparent; color:var(--accent-strong); font:600 9px var(--font-body); cursor:pointer; }
+.sight-card button:hover { text-decoration:underline; }
+.sights-empty { grid-column:1/-1; padding:12px; color:var(--muted); font-size:12px; }
+@media(max-width:800px){body:has(.map-column) main{grid-template-columns:minmax(0,1fr);height:auto;min-height:0}.map-column{order:-1}body:has(.map-column) .map-wrap{flex:none;height:54dvh;min-height:280px}.attractions-panel{flex:0 0 auto;max-height:220px;border-top:0}.sights-grid{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}}

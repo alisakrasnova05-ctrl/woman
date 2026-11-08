@@ -296,6 +296,9 @@ const server = http.createServer(async (req, res) => {
         days: trip.datesConfirmed === true && trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
       })));
     }
+    if (req.method === 'GET' && pathname === '/api/attractions') {
+      return sendJson(res, 200, readDb().attractions || []);
+    }
     const planMatch=pathname.match(/^\/api\/trips\/([^/]+)\/parse-plans$/);
     if(planMatch && req.method==='POST') {
       const body=await parseBody(req),trip=readDb().trips.find(t=>t.id===decodeURIComponent(planMatch[1]));

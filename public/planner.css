@@ -27,3 +27,19 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--ink)}.topb
 .calendar-footer{flex-wrap:wrap;gap:var(--space-sm)}.plan-text-card input{display:block;width:100%;box-sizing:border-box;font:inherit;margin:var(--space) 0;padding:var(--space);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--ink)}
 .plan-text-card input:focus{outline:2px solid var(--accent-strong);outline-offset:2px}
 @media(max-width:600px){.overview-heading{align-items:flex-start;flex-direction:column}.plan-move{flex-wrap:wrap}#tripOverview{grid-template-columns:minmax(0,1fr)}}
+/* Use the same tracks for note headings and their input fields. */
+.notes-table-head,.note-row{grid-template-columns:minmax(90px,110px) minmax(90px,110px) minmax(200px,1fr) minmax(135px,170px) 32px;column-gap:16px}
+.notes-table-head>span{min-width:0;padding:0;text-align:left}
+.notes-table-head>span:nth-child(4){text-align:right}
+.note-row>input[data-field="startTime"],.note-row>input[data-field="endTime"],.note-row>input[data-field="title"]{min-width:0;width:100%;border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+.notes-actions{justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.notes-actions #saveDayBtn{white-space:normal}
+.day-save-status{min-height:0;margin:6px 0 0;color:var(--muted);font-size:12px}
+.day-save-status:empty{display:none}
+@media(max-width:650px){.notes-table-head,.note-row{grid-template-columns:68px 68px minmax(0,1fr) 28px;column-gap:8px}.notes-table-head>span{padding:0}.note-row>input[data-field="startTime"],.note-row>input[data-field="endTime"],.note-row>input[data-field="title"]{min-width:0}.notes-actions{align-items:stretch;flex-direction:column}.notes-actions>*{width:100%}.day-save-status{text-align:left}}
+
+/* Add breathing room between the column labels and each event's fields. */
+.notes-table-head{padding-bottom:24px}
+.note-row{min-height:74px}
+@media(max-width:650px){.notes-table-head{padding-bottom:20px}.note-row{min-height:82px}}
+ 
