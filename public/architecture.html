@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Traveler’s Glider — Архитектура</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #243443; background: #f4f7f9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 22px max(24px, calc((100% - 920px) / 2)); background: #182b3a; color: #fff; }
+    header a { color: #c8e6f2; text-decoration: none; }
+    main { max-width: 920px; margin: 36px auto; padding: 0 24px 48px; line-height: 1.65; }
+    h1, h2 { line-height: 1.2; }
+    h1 { margin-top: 0; }
+    h2 { margin-top: 34px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    code { padding: 2px 5px; border-radius: 4px; background: #e8eef2; }
+    pre { overflow-x: auto; padding: 18px; border-radius: 8px; background: #182b3a; color: #eaf2f7; line-height: 1.5; }
+    a { color: #176b8c; }
+    li { margin: 7px 0; }
+    .lead { color: #536676; font-size: 1.08rem; }
+    @media (max-width: 600px) { main { margin-top: 24px; } header { padding: 18px 24px; } }
+  </style>
+</head>
+<body>
+  <header><a href="/api-docs">← К Swagger API</a></header>
+  <main>
+    <h1>Архитектура Traveler’s Glider</h1>
+    <p class="lead">Приложение для планирования поездок. Сервер и интерфейс работают на встроенных возможностях Node.js и браузера без сборки и обязательных npm-зависимостей.</p>
+
+    <pre>Браузер
+  ├─ public/*.html, *.css, *.js
+  └─ REST /api/*
+        ↓
+Node.js HTTP сервер (server/index.js)
+  ├─ CRUD и фильтрация по поездке
+  ├─ разбор планов (server/plan-parser.js)
+  ├─ JSON persistence (data/db.json)
+  └─ фотографии (data/uploads/)</pre>
+
+    <h2>Компоненты</h2>
+    <ul>
+      <li><code>server/index.js</code> — HTTP-маршруты API и раздача статических файлов. Использует встроенные модули Node.js.</li>
+      <li><code>server/plan-parser.js</code> — извлекает события из текста, при настройке использует LLM, затем пытается определить координаты мест через Nominatim.</li>
+      <li><code>public/</code> — клиентские страницы поездок, календаря и маршрута; JavaScript обращается к REST API через <code>fetch</code>.</li>
+      <li><code>data/db.json</code> — хранит поездки, точки, события и перемещения. <code>data/uploads/</code> хранит загруженные изображения.</li>
+    </ul>
+
+    <h2>Хранение и область данных</h2>
+    <p>Точки, события и перемещения могут быть привязаны к поездке через <code>tripId</code>. Для их API-запросов передавайте <code>?tripId=…</code>; сервер изолирует данные поездок при чтении и записи. Записи без <code>tripId</code> относятся к старым данным.</p>
+    <p>Данные сохраняются в JSON-файле целиком при изменениях. Для многопользовательской production-системы этот слой можно заменить транзакционной базой данных и объектным хранилищем.</p>
+
+    <h2>Внешние сервисы</h2>
+    <ul>
+      <li>Поиск городов — Open-Meteo Geocoding API; для ряда популярных городов есть локальный резервный список.</li>
+      <li>Поиск координат распознанных мест — Nominatim. При недоступности сервиса событие возвращается без координат.</li>
+      <li>Разбор планов через LLM включается переменными <code>LLM_API_KEY</code>, <code>LLM_BASE_URL</code> и <code>LLM_MODEL</code>; без них работает эвристический разбор.</li>
+      <li>Карта использует Leaflet и тайлы OpenStreetMap в клиентской части.</li>
+    </ul>
+
+    <h2>Документация API</h2>
+    <p><a href="/api-docs">Открыть Swagger UI</a> · <a href="/api/openapi.json">Скачать OpenAPI JSON</a></p>
+  </main>
+</body>
+</html>

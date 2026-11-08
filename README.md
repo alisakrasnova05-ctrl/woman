@@ -15,6 +15,8 @@ npm start
 
 Интерактивная Swagger-документация API доступна по адресу http://localhost:3000/api-docs, OpenAPI-спецификация — http://localhost:3000/api/openapi.json. Swagger UI загружается с unpkg; JSON-спецификация отдаётся самим приложением.
 
+Архитектурная документация доступна по адресу http://localhost:3000/architecture.
+
 ## Структура
 
 - `server/index.js` — HTTP REST API и раздача frontend без обязательных зависимостей.

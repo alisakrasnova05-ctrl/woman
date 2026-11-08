@@ -592,6 +592,8 @@ const server = http.createServer(async (req, res) => {
         ? '/home.html'
         : pathname === '/api-docs' || pathname === '/api-docs/'
           ? '/api-docs.html'
+        : pathname === '/architecture' || pathname === '/architecture/'
+          ? '/architecture.html'
         : pathname === '/trip'
           ? '/index.html'
           : pathname === '/planner'

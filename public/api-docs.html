@@ -13,9 +13,13 @@
     .swagger-ui .topbar-wrapper .link { max-width: none; }
     .swagger-ui .topbar-wrapper .link::after { content: "Traveler’s Glider API"; color: #fff; font-size: 17px; font-weight: 600; margin-left: 12px; }
     .swagger-ui .topbar-wrapper .link svg { display: none; }
+    .architecture-link { position: fixed; z-index: 10; top: 14px; right: max(24px, calc((100% - 1180px) / 2)); color: #fff; font-size: 14px; text-decoration: none; }
+    .architecture-link:hover { text-decoration: underline; }
+    @media (max-width: 600px) { .architecture-link { top: 17px; right: 14px; font-size: 12px; } }
   </style>
 </head>
 <body>
+  <a class="architecture-link" href="/architecture">Архитектура</a>
   <div id="swagger-ui"></div>
   <script src="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui-bundle.js"></script>
   <script src="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui-standalone-preset.js"></script>
