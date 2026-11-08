@@ -5,6 +5,11 @@ const url = require('url');
 const { AsyncLocalStorage } = require('async_hooks');
 const tripContext = new AsyncLocalStorage();
 
+const envFile=path.join(__dirname,'..','.env');
+if(fs.existsSync(envFile) && typeof process.loadEnvFile==='function')process.loadEnvFile(envFile);
+const {parsePlans,validDate:validPlanDate}=require('./plan-parser');
+let activePlanRequests=0;
+
 const PORT = Number(process.env.PORT || 3000);
 const DB = path.join(__dirname, '..', 'data', 'db.json');
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -284,6 +289,17 @@ const server = http.createServer(async (req, res) => {
         days: trip.datesConfirmed === true && trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
       })));
     }
+    const planMatch=pathname.match(/^\/api\/trips\/([^/]+)\/parse-plans$/);
+    if(planMatch && req.method==='POST') {
+      const body=await parseBody(req),trip=readDb().trips.find(t=>t.id===decodeURIComponent(planMatch[1]));
+      if(!trip)return sendJson(res,404,{error:'Путешествие не найдено'});
+      if(typeof body.text!=='string'||!body.text.trim()||body.text.length>10000)return sendJson(res,400,{error:'Введите планы: до 10 000 символов'});
+      if(!validPlanDate(body.date))return sendJson(res,400,{error:'Выберите день в календаре'});
+      if(activePlanRequests>=3)return sendJson(res,429,{error:'Сейчас обрабатываются другие планы. Повторите чуть позже — текст сохранён.'});
+      activePlanRequests++;
+      try {return sendJson(res,200,await parsePlans(body.text,{date:body.date,city:trip.city || {name:trip.destination||trip.title}}));}
+      finally {activePlanRequests--;}
+    }
     const daySaveMatch = pathname.match(/^\/api\/trips\/([^/]+)\/day-events$/);
     if (daySaveMatch && req.method === 'PUT') {
       const body = await parseBody(req), db = readDb(), tripId = decodeURIComponent(daySaveMatch[1]);
@@ -300,7 +316,16 @@ const server = http.createServer(async (req, res) => {
         if (!entry.title?.trim() || !entry.startTime || !entry.date) errors.push('Заполните название, дату и время начала каждого события');
         if (entry.pointId && !db.points.some(p=>p.id===entry.pointId && (p.tripId||'legacy')===tripId)) errors.push('Точка не принадлежит поездке');
         if (errors.length) return sendJson(res,400,{errors});
-        let event;try {event=withUtc(entry);} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
+        let pointId=entry.pointId || null;
+        if(!pointId && entry.place) {
+          const place=entry.place;
+          if(typeof place.name!=='string'||!place.name.trim()||!Number.isFinite(place.lat)||!Number.isFinite(place.lng)||Math.abs(place.lat)>90||Math.abs(place.lng)>180)return sendJson(res,400,{error:'Некорректные координаты места'});
+          let point=db.points.find(p=>(p.tripId||'legacy')===tripId && Math.abs(p.lat-place.lat)<0.000001 && Math.abs(p.lng-place.lng)<0.000001);
+          if(!point){point={id:id('p'),tripId,name:place.name.trim().slice(0,200),lat:place.lat,lng:place.lng,description:typeof place.address==='string'?place.address.slice(0,500):''};db.points.push(point);}
+          pointId=point.id;
+        }
+        const {place,...fields}=entry;
+        let event;try {event=withUtc({...fields,pointId});} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
         const existing=db.events.find(e=>e.dayNoteId===entry.dayNoteId && e.source==='day-notes' && e.tripId===tripId);
         prepared.push({...event,id:existing?.id||id('e'),tripId,source:'day-notes',dayNoteId:String(entry.dayNoteId),createdAt:existing?.createdAt||new Date().toISOString()});
       }

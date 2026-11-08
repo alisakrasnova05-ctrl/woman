@@ -10,7 +10,7 @@
       if(!el.querySelector('svg')) el.innerHTML=icon('glider');
     });
     root.querySelectorAll('button').forEach(button => {
-      const busy=button.disabled && /Сохраня|Загруз/.test(button.textContent);
+      const busy=button.disabled && /Сохраня|Загруз|Разбира/.test(button.textContent);
       if(button.getAttribute('aria-busy')!==String(busy)) button.setAttribute('aria-busy',String(busy));
     });
   };

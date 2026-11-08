@@ -220,7 +220,7 @@
         <input type="time" aria-label="Время начала события" value="${escapeAttr(item.startTime || item.time || '')}" data-field="startTime">
         <input type="time" aria-label="Время окончания события" value="${escapeAttr(item.endTime || '')}" data-field="endTime">
         <input type="text" aria-label="Событие и место" placeholder="Например, музей или прогулка по набережной" value="${escapeAttr(item.title || '')}" data-field="title">
-        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">Без точки</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
+        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">${item.place ? escapeAttr(item.place.name)+' — найдено на карте' : 'Без точки'}</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
         <div class="ticket-cell ${item.ticket ? 'has-ticket' : ''}">
           <input class="ticket-file-input" type="file" accept=".pdf,image/*" aria-label="Выбрать файл билета" tabindex="-1">
           <button class="ticket-pick" type="button" title="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}" aria-label="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 7.1-7.1a3.5 3.5 0 0 1 5 5L10 20.5a5 5 0 0 1-7.1-7.1L13 3.3"/></svg><span>${item.ticket ? '' : 'Прикрепить'}</span></button>
@@ -317,6 +317,30 @@
     return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
 
+  const planTextKey=storageKey('glider-plan-text');
+  try {$('#plansText').value=localStorage.getItem(planTextKey)||'';}catch{}
+  $('#plansText').addEventListener('input',()=>{try{localStorage.setItem(planTextKey,$('#plansText').value);}catch{$('#plansStatus').textContent='Не удалось сохранить текст на устройстве. Не закрывайте страницу до разбора.';}});
+  $('#parsePlansBtn').addEventListener('click',async()=>{
+    const text=$('#plansText').value.trim();
+    if(!tripId||!text){$('#plansStatus').textContent=tripId?'Напишите ваши планы.':'Откройте путешествие с главной страницы.';return;}
+    const button=$('#parsePlansBtn');button.disabled=true;button.textContent='Разбираем планы…';button.setAttribute('aria-busy','true');$('#plansStatus').textContent='Подбираем места. Исходный текст остаётся на устройстве.';
+    try {
+      const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/parse-plans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,date:selected}),signal:AbortSignal.timeout(35000)});
+      const result=await response.json();if(!response.ok)throw Error(result.error||'Не удалось разобрать планы');
+      let added=0,unlocated=0;
+      for(const item of result.items||[]) {
+        const duplicate=(notes[item.date]||[]).some(n=>n.planInput===text && n.planTitle===item.title);
+        if(duplicate)continue;
+        (notes[item.date]||=[]).push({...item,dayNoteId:createTicketId(),planInput:text,planTitle:item.title,description:[item.description,item.placeName&&!item.place?'Место: '+item.placeName+' (координаты не найдены)':''].filter(Boolean).join('\n')});
+        added++;if(!item.place)unlocated++;
+      }
+      if(added && result.items?.[0]?.date){selected=result.items[0].date;const day=parseDate(selected);view=new Date(day.getFullYear(),day.getMonth(),1);try{localStorage.setItem(storageKey('travelhub-selected-day'),JSON.stringify(selected));}catch{}}
+      persistNotes();renderCalendar();renderNotes();
+      $('#plansStatus').textContent=added?`Добавлено в черновик: ${added}. Проверьте даты и время, затем сохраните события.${unlocated?' Для некоторых мест координаты не найдены; выберите точку вручную.':''}`:'Эти планы уже есть в черновике.';
+    }catch(error){$('#plansStatus').textContent='Не удалось обработать планы. Текст сохранён на устройстве; повторите попытку. '+error.message;}
+    finally {button.disabled=false;button.textContent='Разобрать планы';button.setAttribute('aria-busy','false');}
+  });
+
   $('#saveDayBtn').addEventListener('click',async()=>{
     if(savingNotes)return;
     if(!rangeStart||!rangeEnd){$('#daySaveStatus').textContent='Сначала выберите диапазон поездки в календаре.';return;}
@@ -325,7 +349,7 @@
     for(const [date,rows] of Object.entries(notes))for(const note of rows){
       if(!note.title?.trim() || !(note.startTime||note.time)){$('#daySaveStatus').textContent='Заполните название и время начала всех событий, включая другие дни. Либо удалите пустые строки.';return;}
       note.dayNoteId=note.dayNoteId||createTicketId();
-      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null});
+      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null,place:note.place||null});
     }
     persistNotes();savingNotes=true;$('#saveDayBtn').disabled=true;$('#saveDayBtn').textContent='Сохраняем…';
     const controls=[...$('#notesRows').querySelectorAll('input,textarea,select,button'),$('#addEventBtn')];controls.forEach(el=>el.disabled=true);

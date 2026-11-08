@@ -55,6 +55,14 @@
         <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Изменить диапазон</button></div>
       </section>
 
+      <section class="plan-text-card" aria-labelledby="planTextTitle">
+        <p class="eyebrow">ИЗ МЫСЛЕЙ — В МАРШРУТ</p><h2 id="planTextTitle">Ваши планы</h2>
+        <label for="plansText">Напишите места, даты и время — каждый план с новой строки</label>
+        <textarea id="plansText" maxlength="10000" rows="4" placeholder="12 июля в 10:00 посетить Казанский кремль&#10;После обеда сходить в музей"></textarea>
+        <p class="muted">Текст передаётся сервису разбора планов. Не включайте паспортные и платёжные данные. Предложенные места и время можно исправить перед сохранением.</p>
+        <button id="parsePlansBtn" class="add-button" type="button">Разобрать планы</button>
+        <p id="plansStatus" role="status" aria-live="polite"></p>
+      </section>
       <section class="notes-section" aria-labelledby="notesTitle">
         <div class="notes-heading">
           <div><p class="eyebrow">ВАШ ПЛАН</p><h2 id="notesTitle">Заметки на день</h2><p id="selectedDateLabel" class="selected-date-label"></p></div>

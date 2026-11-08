@@ -1,25 +1,6 @@
 {
   "trips": [
     {
-      "id": "legacy",
-      "title": "Москва",
-      "destination": "Москва",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-06",
-      "endDate": "2026-11-20"
-    },
-    {
-      "id": "trip_1794058231236_khoz5",
-      "title": "казань",
-      "destination": "казань",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-03",
-      "endDate": "2026-11-11",
-      "createdAt": "2026-11-07T13:30:31.237Z"
-    },
-    {
       "id": "trip_1794058626028_22gqj",
       "title": "казань",
       "destination": "казань",
@@ -30,23 +11,13 @@
       "createdAt": "2026-11-07T13:37:06.029Z"
     },
     {
-      "id": "trip_1794059257202_6gzxt",
-      "title": "байкал",
-      "destination": "байкал",
-      "month": 11,
-      "year": 2026,
-      "startDate": "2026-11-01",
-      "endDate": "2026-11-04",
-      "createdAt": "2026-11-07T13:47:37.202Z"
-    },
-    {
       "id": "trip_1794059317372_gms0o",
       "title": "байкал",
       "destination": "байкал",
-      "month": 11,
+      "month": 12,
       "year": 2026,
-      "startDate": "2026-11-03",
-      "endDate": "2026-11-11",
+      "startDate": "2026-12-02",
+      "endDate": "2026-12-10",
       "createdAt": "2026-11-07T13:48:37.372Z"
     },
     {
@@ -350,147 +321,7 @@
       "timezone": "Europe/Moscow"
     }
   ],
-  "points": [
-    {
-      "id": "p1",
-      "name": "Красная площадь",
-      "lat": 55.7539,
-      "lng": 37.6208,
-      "description": "Центр Москвы",
-      "timezone": "Europe/Moscow",
-      "tripId": "legacy"
-    },
-    {
-      "id": "p2",
-      "name": "Третьяковская галерея",
-      "lat": 55.7415,
-      "lng": 37.6208,
-      "description": "Музей русского искусства",
-      "timezone": "Europe/Moscow",
-      "tripId": "legacy"
-    },
-    {
-      "id": "p3",
-      "name": "Патриаршие пруды",
-      "lat": 55.7666,
-      "lng": 37.5922,
-      "description": "Прогулочная зона",
-      "timezone": "Europe/Moscow",
-      "tripId": "legacy"
-    },
-    {
-      "id": "p_1794045844712_9t33a",
-      "name": "тлот",
-      "lat": 55.790883,
-      "lng": 49.122233,
-      "description": "",
-      "tripId": "legacy"
-    },
-    {
-      "id": "p_1794058165022_015fn",
-      "name": "дом",
-      "lat": 55.759167,
-      "lng": 37.61605,
-      "description": "",
-      "tripId": "legacy"
-    },
-    {
-      "id": "p_1794045865320_7gn1k",
-      "name": "Аэропорт Казани",
-      "lat": 55.772698,
-      "lng": 37.626053,
-      "description": "",
-      "tripId": "legacy"
-    },
-    {
-      "id": "p_1794058301794_rk319",
-      "name": "аэропорт",
-      "lat": 55.768993,
-      "lng": 37.607338,
-      "description": "",
-      "tripId": "legacy"
-    }
-  ],
-  "events": [
-    {
-      "title": "ужин",
-      "type": "excursion",
-      "date": "2025-06-12",
-      "startTime": "23:33",
-      "endTime": "23:44",
-      "endDate": "2025-06-12",
-      "pointId": null,
-      "attractionId": null,
-      "description": "",
-      "bookingUrl": "",
-      "materials": [],
-      "startAt": "2025-06-12T20:33:00.000Z",
-      "endAt": "2025-06-12T20:44:00.000Z",
-      "id": "e_1794055626909_zveij",
-      "createdAt": "2026-11-07T12:47:06.909Z",
-      "tripId": "legacy"
-    },
-    {
-      "title": "влвльвьлвл",
-      "type": "excursion",
-      "date": "2025-06-12",
-      "startTime": "12:00",
-      "endTime": "12:06",
-      "endDate": "2025-06-12",
-      "pointId": "p3",
-      "description": "швышовошвышовы",
-      "materials": [
-        "/uploads/photo_1794057288235_f0eql.jpg"
-      ],
-      "id": "e_1794057288242_y0l3o",
-      "createdAt": "2026-11-07T13:14:48.242Z"
-    },
-    {
-      "title": "оилрирлпи",
-      "type": "excursion",
-      "date": "2025-06-12",
-      "startTime": "12:00",
-      "endTime": "13:00",
-      "endDate": "2025-06-12",
-      "pointId": "p_1794058301794_rk319",
-      "attractionId": null,
-      "description": "ляляляля",
-      "materials": [
-        "/uploads/photo_1794058310110_g38jd.jpg"
-      ],
-      "startAt": "2025-06-12T09:00:00.000Z",
-      "endAt": "2025-06-12T10:00:00.000Z",
-      "id": "e_1794058310113_awaaj",
-      "createdAt": "2026-11-07T13:31:50.113Z",
-      "tripId": "legacy"
-    }
-  ],
-  "transfers": [
-    {
-      "fromPointId": "p1",
-      "toPointId": "p2",
-      "mode": "walking",
-      "date": "2025-06-12",
-      "startTime": "14:00",
-      "endDate": "2025-06-12",
-      "endTime": "14:50",
-      "description": "",
-      "id": "t_1794045105841_k6ff0",
-      "createdAt": "2026-11-07T09:51:45.842Z",
-      "tripId": "legacy"
-    },
-    {
-      "fromPointId": "p3",
-      "toPointId": "p1",
-      "mode": "car",
-      "date": "2025-06-12",
-      "startTime": "15:44",
-      "endDate": "2025-06-12",
-      "endTime": "16:07",
-      "description": "",
-      "id": "t_1794055816448_6iqwz",
-      "createdAt": "2026-11-07T12:50:16.448Z",
-      "tripId": "legacy"
-    }
-  ]
+  "points": [],
+  "events": [],
+  "transfers": []
 }
