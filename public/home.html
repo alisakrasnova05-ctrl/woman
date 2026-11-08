@@ -14,7 +14,6 @@
     <header>
       <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></div>
       <nav class="site-nav" aria-label="Навигация">
-        <a href="#tripForm">Новая поездка</a>
         <a href="#trips">Мои путешествия</a>
       </nav>
     <span class="brand-tagline">Планы обретают крылья</span></header>
@@ -23,11 +22,13 @@
         <div>
           <p class="eyebrow">НОВОЕ ПУТЕШЕСТВИЕ</p>
           <h1>Куда отправимся?</h1>
-          <p class="muted">Выберите месяц поездки и напишите место назначения.</p>
+          <p class="muted">Выберите дату и город, придумайте название и добавьте фото обложки.</p>
         </div>
         <form id="tripForm">
           <label><span>КОГДА</span><div class="selects"><select id="month"></select><select id="year"></select></div></label>
           <label class="destination"><span>КУДА</span><div class="destination-field"><input id="destination" placeholder="Казань, Санкт-Петербург, Байкал" autocomplete="off"></div></label>
+          <label class="trip-title-field"><span>НАЗВАНИЕ ПОЕЗДКИ</span><input id="tripTitle" type="text" maxlength="60" placeholder="Например, Летние каникулы"></label>
+          <label class="cover-upload"><span>ФОТО ДЛЯ ОБЛОЖКИ</span><input id="coverFile" type="file" accept="image/jpeg,image/png"><small id="coverFileName">Выберите JPG или PNG, до 10 МБ</small><img id="coverPreview" alt="Предпросмотр обложки" hidden></label>
           <button class="add-btn">Добавить</button>
           <div id="formError" class="error"></div>
         </form>
@@ -35,6 +36,7 @@
       <section class="history">
         <div class="history-head"><div><p class="eyebrow">МОИ ПУТЕШЕСТВИЯ</p></div><span id="count" class="count"></span></div>
         <div id="trips" class="trip-list"></div>
+        <div class="history-footer"><a class="add-btn" href="#tripForm">＋ Новая поездка</a></div>
       </section>
     </main>
     <script src="/journal-icons.js"></script>

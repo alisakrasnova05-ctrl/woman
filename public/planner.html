@@ -45,10 +45,14 @@
             <button id="nextMonth" class="month-button" type="button" aria-label="Следующий месяц">›</button>
           </div>
         </div>
-        <p class="range-instruction">Нажмите начало и конец поездки на календаре. Новый клик начинает изменение дат.</p>
+        <p class="range-instruction">Выберите начало и конец поездки. После сохранения нажмите «Изменить диапазон», чтобы выбрать новые даты; клики по дням переключают заметки.</p>
+        <div id="rangePrompt" class="range-prompt" hidden>
+          <div><strong>Сначала выберите даты поездки</strong><small id="rangePromptMessage">Нажмите на дату начала, затем на дату окончания.</small></div>
+          <button id="startRangeBtn" class="secondary" type="button">Выбрать диапазон</button>
+        </div>
         <div class="weekdays" aria-hidden="true"><span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span></div>
-        <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь"></div>
-        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Сбросить даты</button></div>
+        <div id="calendarGrid" class="calendar-grid" role="grid" aria-label="Календарь" tabindex="-1"></div>
+        <div class="calendar-footer"><span class="legend"><i></i> Дни поездки</span><span id="rangeHint" aria-live="polite"></span><button id="resetDatesBtn" class="today-button" type="button">Изменить диапазон</button></div>
       </section>
 
       <section class="notes-section" aria-labelledby="notesTitle">

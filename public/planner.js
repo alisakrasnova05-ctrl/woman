@@ -10,7 +10,7 @@
   const headingMonths = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
   const load = (key, fallback) => { try { return JSON.parse(localStorage.getItem(storageKey(key))) || fallback; } catch { return fallback; } };
   let view = new Date(today.getFullYear(), today.getMonth(), 1);
-  let selected = load('travelhub-selected-day', dateKey(today));
+  let selected = load('travelhub-selected-day', tripId ? '' : dateKey(today));
   let rangeStart = load('travelhub-trip-start', '');
   let rangeEnd = load('travelhub-trip-end', '');
   let notes = load('travelhub-day-notes', {});
@@ -29,6 +29,7 @@
   $('#yearSelect').innerHTML = yearOptions.join('');
 
   let rangePending = false;
+  let rangeSelecting = !(rangeStart && rangeEnd);
   let savedStart = rangeStart, savedEnd = rangeEnd;
   let saving = false, saveError = '';
   async function saveRange(start, end) {
@@ -52,6 +53,7 @@
     finally {
       rangeStart = savedStart; rangeEnd = savedEnd;
       rangePending = false; saving = false; renderCalendar();
+      if (saveError && !savedStart && !savedEnd) rangeSelecting = true;
     }
   }
 
@@ -61,7 +63,11 @@
     $('#yearSelect').value = String(view.getFullYear());
     const count = rangeStart && rangeEnd ? Math.round((parseDate(rangeEnd)-parseDate(rangeStart))/86400000)+1 : 0;
     const formatDay = key => parseDate(key).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
-    $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeStart && rangeEnd ? `Поездка: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
+    const rangeComplete = rangeStart && rangeEnd && rangeEnd >= rangeStart;
+    $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeComplete ? `Поездка: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
+    $('#rangePrompt').hidden = !!rangeComplete;
+    $('#rangePromptMessage').textContent = rangePending ? 'Начало выбрано. Теперь укажите дату окончания.' : 'Нажмите дату начала, затем дату окончания поездки.';
+    $('#startRangeBtn').textContent = rangePending ? 'Выбрать окончание' : 'Выбрать диапазон';
     $('#resetDatesBtn').disabled = saving || (!savedStart && !rangeStart);
     let progress = document.querySelector('#journalProgress');
     if (!progress) {progress=document.createElement('div');progress.id='journalProgress';progress.className='journal-progress';document.querySelector('.calendar-card').append(progress);}
@@ -110,12 +116,17 @@
   function chooseDay(key) {
     if (saving || savingNotes) return;
     saveError = '';
-    if (rangePending) {
-      rangeEnd = key;
-      if (rangeEnd < rangeStart) [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
-      rangePending = false;
-      saveRange(rangeStart, rangeEnd);
-    } else { rangeStart = key; rangeEnd = ''; rangePending = true; }
+    if (rangeSelecting) {
+      if (rangePending) {
+        rangeEnd = key;
+        if (rangeEnd < rangeStart) [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+        rangePending = false;
+        rangeSelecting = false;
+        saveRange(rangeStart, rangeEnd);
+      } else {
+        rangeStart = key; rangeEnd = ''; rangePending = true;
+      }
+    }
     selected = key;
     localStorage.setItem(storageKey('travelhub-selected-day'), JSON.stringify(selected));
     const date = parseDate(key);
@@ -185,9 +196,24 @@
 
   function renderNotes() {
     renderSavedContent();
+    const rangeComplete = rangeStart && rangeEnd && rangeEnd >= rangeStart;
+    $('#addEventBtn').disabled = !rangeComplete || !selected;
+    $('#saveDayBtn').disabled = !rangeComplete || !selected;
+    if (!rangeComplete || !selected) {
+      $('#notesTitle').textContent = rangeComplete ? 'Выберите день поездки' : 'Сначала выберите диапазон';
+      $('#selectedDateLabel').textContent = selected ? parseDate(selected).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}) : '';
+      $('#notesRows').innerHTML = '';
+      $('#emptyNotes').hidden = false;
+      $('#emptyNotes').querySelector('strong').textContent = rangeComplete ? 'Выберите день в календаре' : 'Отметьте начало и конец поездки';
+      $('#emptyNotes').querySelector('span:not(.empty-icon)').textContent = rangeComplete ? 'Нажмите на день поездки, чтобы добавить заметки' : 'После этого можно будет добавлять события и заметки';
+      $('#eventCount').textContent = '';
+      return;
+    }
     const date = parseDate(selected);
     $('#selectedDateLabel').textContent = `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     $('#notesTitle').textContent = 'Заметки на день';
+    $('#emptyNotes').querySelector('strong').textContent = 'Пока здесь пусто';
+    $('#emptyNotes').querySelector('span:not(.empty-icon)').textContent = 'Добавьте время и место, которые хотите посетить';
     const items = notes[selected] || [];
     $('#notesRows').innerHTML = items.map((item, index) => `
       <div class="note-row" data-index="${index}">
@@ -293,6 +319,7 @@
 
   $('#saveDayBtn').addEventListener('click',async()=>{
     if(savingNotes)return;
+    if(!rangeStart||!rangeEnd){$('#daySaveStatus').textContent='Сначала выберите диапазон поездки в календаре.';return;}
     if(!tripId){$('#daySaveStatus').textContent='Откройте календарь конкретного путешествия с главной страницы.';return;}
     const events=[];
     for(const [date,rows] of Object.entries(notes))for(const note of rows){
@@ -312,7 +339,17 @@
     }catch(error){$('#daySaveStatus').textContent='Не удалось сохранить: '+error.message+'. Черновик остался на устройстве.';}
     finally{savingNotes=false;$('#saveDayBtn').disabled=false;$('#saveDayBtn').textContent='Сохранить и перейти к карте';controls.forEach(el=>el.disabled=false);}
   });
-  $('#resetDatesBtn').addEventListener('click', () => saveRange('', ''));
+
+
+  $('#resetDatesBtn').addEventListener('click', () => {
+    rangeSelecting = true;
+    rangePending = false;
+    saveRange('', '');
+  });
+  $('#startRangeBtn').addEventListener('click', () => {
+    rangeSelecting = true;
+    $('#calendarGrid').focus();
+  });
   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
   $('#nextMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); });
   function changeCalendarMonth() {
@@ -373,6 +410,7 @@
       document.title = `${trip.title} — календарь · Traveler's Glider`;
       rangeStart = trip.startDate || '';
       rangeEnd = trip.endDate || '';
+      rangeSelecting = !(rangeStart && rangeEnd);
       savedStart = rangeStart; savedEnd = rangeEnd;
       document.querySelectorAll('.map-link,.map-action').forEach(link => {
         if (link.getAttribute('href') === '/trip') link.href = '/trip?' + new URLSearchParams({trip:tripId});
@@ -382,7 +420,7 @@
       const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : (trip.month || start.getMonth()+1);
       const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : (trip.year || start.getFullYear());
       view = trip.startDate ? new Date(start.getFullYear(), start.getMonth(), 1) : new Date(year, month - 1, 1);
-      if (!localStorage.getItem(storageKey('travelhub-selected-day'))) selected = dateKey(view);
+      if (!rangeStart || !rangeEnd || !localStorage.getItem(storageKey('travelhub-selected-day'))) selected = '';
     } else {
       const selectedDate = parseDate(selected);
       view = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);

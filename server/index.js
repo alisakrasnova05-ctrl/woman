@@ -220,6 +220,39 @@ function cityRecord(city) {
   return {id:city.id,name:city.name,country:city.country,admin1:city.admin1,latitude:city.latitude,longitude:city.longitude,timezone:city.timezone};
 }
 function isCity(city) { return /^PPL/.test(city.feature_code || ''); }
+const localCities = [
+  {id:'local-moscow',name:'Москва',country:'Россия',admin1:'Москва',latitude:55.7558,longitude:37.6173,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['moscow']},
+  {id:'local-saint-petersburg',name:'Санкт-Петербург',country:'Россия',admin1:'Санкт-Петербург',latitude:59.9343,longitude:30.3351,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['петербург','питер','saint petersburg','st petersburg']},
+  {id:'local-kazan',name:'Казань',country:'Россия',admin1:'Татарстан',latitude:55.7961,longitude:49.1064,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['kazan']},
+  {id:'local-nizhny-novgorod',name:'Нижний Новгород',country:'Россия',admin1:'Нижегородская область',latitude:56.2965,longitude:43.9361,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['нижний','nizhny novgorod']},
+  {id:'local-sochi',name:'Сочи',country:'Россия',admin1:'Краснодарский край',latitude:43.5855,longitude:39.7231,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['sochi']},
+  {id:'local-yekaterinburg',name:'Екатеринбург',country:'Россия',admin1:'Свердловская область',latitude:56.8389,longitude:60.6057,timezone:'Asia/Yekaterinburg',feature_code:'PPLA',aliases:['ekaterinburg','yekaterinburg']},
+  {id:'local-novosibirsk',name:'Новосибирск',country:'Россия',admin1:'Новосибирская область',latitude:55.0084,longitude:82.9357,timezone:'Asia/Novosibirsk',feature_code:'PPLA',aliases:['novosibirsk']},
+  {id:'local-kaliningrad',name:'Калининград',country:'Россия',admin1:'Калининградская область',latitude:54.7104,longitude:20.4522,timezone:'Europe/Kaliningrad',feature_code:'PPLA',aliases:['kaliningrad']},
+  {id:'local-vladivostok',name:'Владивосток',country:'Россия',admin1:'Приморский край',latitude:43.1155,longitude:131.8855,timezone:'Asia/Vladivostok',feature_code:'PPLA',aliases:['vladivostok']},
+  {id:'local-samara',name:'Самара',country:'Россия',admin1:'Самарская область',latitude:53.1959,longitude:50.1002,timezone:'Europe/Samara',feature_code:'PPLA',aliases:['samara']},
+  {id:'local-ufa',name:'Уфа',country:'Россия',admin1:'Башкортостан',latitude:54.7388,longitude:55.9721,timezone:'Asia/Yekaterinburg',feature_code:'PPLA',aliases:['ufa']},
+  {id:'local-krasnodar',name:'Краснодар',country:'Россия',admin1:'Краснодарский край',latitude:45.0355,longitude:38.9753,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['krasnodar']},
+  {id:'local-irkutsk',name:'Иркутск',country:'Россия',admin1:'Иркутская область',latitude:52.2864,longitude:104.2807,timezone:'Asia/Irkutsk',feature_code:'PPLA',aliases:['irkutsk']},
+  {id:'local-murmansk',name:'Мурманск',country:'Россия',admin1:'Мурманская область',latitude:68.9585,longitude:33.0827,timezone:'Europe/Moscow',feature_code:'PPLA',aliases:['murmansk']},
+  {id:'local-minsk',name:'Минск',country:'Беларусь',admin1:'Минск',latitude:53.9006,longitude:27.559,timezone:'Europe/Minsk',feature_code:'PPLC',aliases:['minsk']},
+  {id:'local-astana',name:'Астана',country:'Казахстан',admin1:'Астана',latitude:51.1694,longitude:71.4491,timezone:'Asia/Almaty',feature_code:'PPLC',aliases:['астана','нур-султан','astana']},
+  {id:'local-almaty',name:'Алматы',country:'Казахстан',admin1:'Алматы',latitude:43.2383,longitude:76.9455,timezone:'Asia/Almaty',feature_code:'PPLA',aliases:['almaty']},
+  {id:'local-tbilisi',name:'Тбилиси',country:'Грузия',admin1:'Тбилиси',latitude:41.7151,longitude:44.8271,timezone:'Asia/Tbilisi',feature_code:'PPLC',aliases:['tbilisi']},
+  {id:'local-yerevan',name:'Ереван',country:'Армения',admin1:'Ереван',latitude:40.1792,longitude:44.4991,timezone:'Asia/Yerevan',feature_code:'PPLC',aliases:['yerevan']},
+  {id:'local-istanbul',name:'Стамбул',country:'Турция',admin1:'Стамбул',latitude:41.0082,longitude:28.9784,timezone:'Europe/Istanbul',feature_code:'PPLA',aliases:['istanbul']},
+  {id:'local-paris',name:'Париж',country:'Франция',admin1:'Иль-де-Франс',latitude:48.8566,longitude:2.3522,timezone:'Europe/Paris',feature_code:'PPLC',aliases:['paris']},
+  {id:'local-rome',name:'Рим',country:'Италия',admin1:'Лацио',latitude:41.9028,longitude:12.4964,timezone:'Europe/Rome',feature_code:'PPLC',aliases:['rome']},
+  {id:'local-london',name:'Лондон',country:'Великобритания',admin1:'Англия',latitude:51.5072,longitude:-0.1276,timezone:'Europe/London',feature_code:'PPLC',aliases:['london']},
+  {id:'local-tokyo',name:'Токио',country:'Япония',admin1:'Токио',latitude:35.6762,longitude:139.6503,timezone:'Asia/Tokyo',feature_code:'PPLC',aliases:['tokyo']},
+  {id:'local-dubai',name:'Дубай',country:'ОАЭ',admin1:'Дубай',latitude:25.2048,longitude:55.2708,timezone:'Asia/Dubai',feature_code:'PPLA',aliases:['dubai']},
+];
+function localCityMatches(name) {
+  const query = name.toLocaleLowerCase('ru').replace(/ё/g, 'е');
+  return localCities.filter(city => [city.name, ...(city.aliases || [])]
+    .some(value => value.toLocaleLowerCase('ru').replace(/ё/g, 'е').includes(query)))
+    .slice(0, 8);
+}
 
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
@@ -231,16 +264,24 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && pathname === '/api/cities') {
       const name = String(parsed.query.name || '').trim();
       if(name.length < 2) return sendJson(res,200,[]);
-      const result = await geocoding('search?' + new URLSearchParams({name,count:'20',language:'ru',format:'json'}));
-      return sendJson(res,200,(result.results || []).filter(isCity).slice(0,8).map(cityRecord));
+      const localMatches = localCityMatches(name);
+      if (localMatches.length) return sendJson(res,200,localMatches.map(cityRecord));
+      try {
+        const result = await geocoding('search?' + new URLSearchParams({name,count:'20',language:'ru',format:'json'}));
+        const matches = (result.results || []).filter(isCity).slice(0,8);
+        if (matches.length) return sendJson(res,200,matches.map(cityRecord));
+      } catch { /* Use the built-in city list when the geocoding service is offline. */ }
+      return sendJson(res,200,localCityMatches(name).map(cityRecord));
     }
     if (req.method === 'GET' && pathname === '/api/trips') {
       const db = readDb();
       return sendJson(res, 200, db.trips.map((trip) => ({
         ...trip,
+        startDate: trip.datesConfirmed === true ? trip.startDate : null,
+        endDate: trip.datesConfirmed === true ? trip.endDate : null,
         pointsCount: db.points.filter((p) => (p.tripId || 'legacy') === trip.id).length,
         eventsCount: db.events.filter((e) => (e.tripId || 'legacy') === trip.id).length,
-        days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
+        days: trip.datesConfirmed === true && trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
       })));
     }
     const daySaveMatch = pathname.match(/^\/api\/trips\/([^/]+)\/day-events$/);
@@ -274,11 +315,15 @@ const server = http.createServer(async (req, res) => {
       const tripIndex = db.trips.findIndex((trip) => trip.id === tripId);
       if (tripIndex < 0) return sendJson(res, 404, { error: 'Путешествие не найдено' });
 
-      db.trips.splice(tripIndex, 1);
+      const [removedTrip] = db.trips.splice(tripIndex, 1);
       db.points = db.points.filter((item) => (item.tripId || 'legacy') !== tripId);
       db.events = db.events.filter((item) => (item.tripId || 'legacy') !== tripId);
       db.transfers = db.transfers.filter((item) => (item.tripId || 'legacy') !== tripId);
       writeDb(db);
+      if (removedTrip.coverUrl && !db.trips.some((trip) => trip.coverUrl === removedTrip.coverUrl)
+        && /^\/uploads\/[A-Za-z0-9_-]+\.(?:jpg|png)$/.test(removedTrip.coverUrl)) {
+        try { fs.unlinkSync(path.join(UPLOADS, path.basename(removedTrip.coverUrl))); } catch { /* The trip is already deleted. */ }
+      }
       return sendJson(res, 200, { id: tripId, deleted: true });
     }
     if (req.method === 'PATCH' && tripMatch) {
@@ -288,24 +333,31 @@ const server = http.createServer(async (req, res) => {
       if (!clearing && (!validDate(body.startDate) || !validDate(body.endDate) || body.endDate < body.startDate)) return sendJson(res,400,{errors:['Выберите корректный диапазон дат']});
       const db = readDb(), trip = db.trips.find(t => t.id === tripMatch[1]);
       if(!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
-      if(clearing) Object.assign(trip,{startDate:null,endDate:null});
-      else Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4))});
+      if(clearing) Object.assign(trip,{startDate:null,endDate:null,datesConfirmed:false});
+      else Object.assign(trip,{startDate:body.startDate,endDate:body.endDate,month:Number(body.startDate.slice(5,7)),year:Number(body.startDate.slice(0,4)),datesConfirmed:true});
       writeDb(db); return sendJson(res,200,trip);
     }
     if (req.method === 'POST' && pathname === '/api/trips') {
       const body = await parseBody(req);
       if (!body.destination?.trim()) return sendJson(res, 400, { errors: ['Укажите место назначения'] });
       const currentYear = new Date().getFullYear();
-      if (!Number.isInteger(Number(body.month)) || Number(body.month)<1 || Number(body.month)>12 || !Number.isInteger(Number(body.year)) || Number(body.year)<currentYear || Number(body.year)>currentYear+5) return sendJson(res,400,{errors:['Выберите доступные месяц и год']});
+      if (!Number.isInteger(Number(body.month)) || Number(body.month)<1 || Number(body.month)>12 || !Number.isInteger(Number(body.year)) || Number(body.year)<1900 || Number(body.year)>currentYear+5) return sendJson(res,400,{errors:['Выберите доступные месяц и год']});
       let city = null;
       if (body.city?.id) {
-        const found = await geocoding('get?' + new URLSearchParams({id:body.city.id,language:'ru'}));
+        const found = String(body.city.id).startsWith('local-')
+          ? localCities.find(item => item.id === body.city.id)
+          : await geocoding('get?' + new URLSearchParams({id:body.city.id,language:'ru'}));
+        if (!found) return sendJson(res,400,{errors:['Выберите город из списка']});
         if(!isCity(found)) return sendJson(res,400,{errors:['Выберите город из списка']});
         city = cityRecord(found);
       } else if (body.cityFallback !== true) return sendJson(res,400,{errors:['Выберите город из списка']});
-      const startDate = `${body.year}-${String(Number(body.month)).padStart(2, '0')}-01`;
-      const end = new Date(`${startDate}T00:00:00`); end.setDate(end.getDate() + 3);
-      const item = { id: id('trip'), title: city?.name || body.destination.trim(), destination: city?.name || body.destination.trim(), city, month: Number(body.month), year: Number(body.year), startDate, endDate: `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`, createdAt: new Date().toISOString() };
+      const destination = city?.name || body.destination.trim();
+      const title = typeof body.title === 'string' ? body.title.trim().slice(0, 60) || destination : destination;
+      const coverUrl = typeof body.coverUrl === 'string' ? body.coverUrl : '';
+      if (coverUrl && (!/^\/uploads\/[A-Za-z0-9_-]+\.(?:jpg|png)$/.test(coverUrl) || !fs.existsSync(path.join(UPLOADS, path.basename(coverUrl))))) {
+        return sendJson(res,400,{errors:['Загрузите корректное фото обложки']});
+      }
+      const item = { id: id('trip'), title, destination, coverUrl, city, month: Number(body.month), year: Number(body.year), startDate: null, endDate: null, datesConfirmed: false, createdAt: new Date().toISOString() };
       const db = readDb(); db.trips.push(item); writeDb(db); return sendJson(res, 201, item);
     }
     if (req.method === 'POST' && pathname === '/api/uploads') {
