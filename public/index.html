@@ -14,7 +14,7 @@
     <header>
       <a class="brand" href="/" style="text-decoration:none"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></a>
       <div class="trip">Москва · 12–14 июня 2025</div>
-    <nav class="site-nav" aria-label="Навигация"><a href="/">На главную</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
+    <nav class="site-nav trip-screen-nav" aria-label="Разделы поездки"><a href="/">На главную</a><a href="/" data-trip-screen="calendar">Календарь</a><a href="/" data-trip-screen="map">Карта</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
 
     <main>
       <section class="sidebar">
@@ -153,7 +153,8 @@
       </form>
     </dialog>
 
-    <script src="/journal-icons.js"></script>
+    <script src="/trip-navigation.js"></script>
+<script src="/journal-icons.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/city-sights.js"></script><script src="/plan-schedule.js"></script>
 <script src="/map-drafts.js"></script>

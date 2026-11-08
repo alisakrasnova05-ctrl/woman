@@ -21,6 +21,8 @@ function heuristic(text,date) {
     if(russian){const month=MONTHS.findIndex(m=>russian[2].toLowerCase().startsWith(m));day=`${russian[3]||date.slice(0,4)}-${String(month+1).padStart(2,'0')}-${russian[1].padStart(2,'0')}`;}
     let placeName=title.replace(explicit?.[0]||'\u0000','').replace(russian?.[0]||'\u0000','')
       .replace(/(?:после обеда|послезавтра|завтра|сегодня|утром|вечером)/gi,'')
+      .replace(/(?:^|\s)(?:на\s+|во?\s+)?(?:первый|второй|третий|четвертый|четвёртый|пятый|шестой|седьмой|\d{1,2}[- ]?(?:й|ый|ой))\s+день(?=\s|$|[,;.])/gi,' ')
+      .replace(/(?:^|\s)(?:во?\s+)?(?:понедельник|вторник|среду|четверг|пятницу|субботу|воскресенье)(?=\s|$|[,;.])/gi,' ')
       .replace(/(?:^|\s)в\s+\d{1,2}(?:[:.]\d{2})?(?:\s*час\S*)?/gi,'')
       .replace(/\b\d{1,2}[:.]\d{2}\b/g,'').trim()
       .replace(/^(?:хочу\s+)?(?:сходить|пойти|посетить|посещение|заселиться|заселение|ужин|обед|завтрак|прогулка)\s+(?:(?:во|в|на|по)\s+)?/i,'').trim();
@@ -44,30 +46,12 @@ async function extract(text,context,{fetchImpl=fetch,env=process.env}={}) {
   }
   return {items:heuristic(text,context.date),source:'heuristic'};
 }
-const cache=new Map();let queue=Promise.resolve(),lastRequest=0;
-async function geocode(name,city,{fetchImpl=fetch,deadline=Date.now()+12000}={}) {
-  if(!name)return null;
-  const query=[name,city?.name].filter(Boolean).join(', ');const key=query.toLowerCase();
-  const cached=cache.get(key);if(cached && Date.now()-cached.at<86400000)return cached.place;
-  const run=async()=>{
-    const delay=Math.max(0,1100-(Date.now()-lastRequest));
-    if(Date.now()+delay>=deadline)return null;
-    await new Promise(resolve=>setTimeout(resolve,delay));lastRequest=Date.now();
-    try {
-      const params=new URLSearchParams({q:query,format:'jsonv2',limit:'1','accept-language':'ru'});
-      if(Number.isFinite(city?.latitude)&&Number.isFinite(city?.longitude))params.set('viewbox',`${city.longitude-.3},${city.latitude+.2},${city.longitude+.3},${city.latitude-.2}`);
-      const response=await fetchImpl('https://nominatim.openstreetmap.org/search?'+params,{headers:{'User-Agent':'TravelersGlider/1.0 (travel itinerary place lookup)'},signal:AbortSignal.timeout(Math.max(1,Math.min(3500,deadline-Date.now())))});
-      if(!response.ok)throw Error('Geocoder unavailable');
-      const [row]=await response.json();const lat=Number(row?.lat),lng=Number(row?.lon);
-      if(!row || !Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return null;
-      const place={name,lat,lng,address:String(row.display_name||'').slice(0,500)};
-      if(cache.size>=1000)cache.delete(cache.keys().next().value);cache.set(key,{at:Date.now(),place});return place;
-    }catch{return null;}
-  };
-  const result=queue.then(run,run);queue=result.catch(()=>{});return result;
+const {searchPlaces}=require('./place-search');
+async function geocode(name,city,options={}) {
+  return (await searchPlaces(name,city,options)).place;
 }
 async function parsePlans(text,context,options={}) {
-  const parsed=await extract(text,context,options);const deadline=Date.now()+12000;
+  const parsed=await extract(text,context,options);
   for(const [index,item] of parsed.items.entries()) {
     const input=parsed.items.length===1?text:(text.split(/[\n;]+/)[index]||item.description||item.title);
     const hint=Schedule.hints(input,context.tripStart||context.date,context.tripEnd||context.date);
@@ -75,7 +59,10 @@ async function parsePlans(text,context,options={}) {
     if(hint.time){item.startTime=hint.time;item.timeExplicit=true;}
     // The heuristic parser supplies default dates; absence of a hint means a free day.
     if(parsed.source==='heuristic'){item.dateExplicit=hint.dateExplicit;item.timeExplicit=hint.timeExplicit;}
-    item.place=await geocode(item.placeName,context.city,{...options,deadline});
+    if(!options.skipPlaceSearch){
+      const found=await searchPlaces(item.placeName,context.city,options);
+      item.place=found.place;item.placeCandidates=found.candidates;item.placeSearchStatus=found.status;
+    }
   }
   return parsed;
 }

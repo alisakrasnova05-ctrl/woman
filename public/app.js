@@ -248,6 +248,7 @@ $('#historyToggle').onclick=()=>{historyMode=!historyMode;$('#historyToggle').se
 $('#historyPrev').onclick=()=>changeHistoryDay(-1);
 $('#historyNext').onclick=()=>changeHistoryDay(1);
 function renderDays() {
+  window.GliderNavigation?.update(selectedDate);
   const list=dates(),index=list.indexOf(selectedDate);
   $('#historyNavigation').hidden=!historyMode;
   $('#historyPosition').textContent=`День ${index+1} из ${list.length} · ${new Date(selectedDate+'T12:00:00').toLocaleDateString('ru-RU')}`;

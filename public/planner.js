@@ -14,7 +14,7 @@
   let rangeStart = load('travelhub-trip-start', '');
   let rangeEnd = load('travelhub-trip-end', '');
   let notes = load('travelhub-day-notes', {});
-  let tripEvents = [], tripPoints = [], tripTransfers = [];
+  let tripEvents = [], tripPoints = [], tripTransfers = [], tripCity = null;
   let addingPlan=false, plannerReady=false, singleDayMode=false;
   let ticketDbPromise;
   const draftKey=storageKey('travelhub-day-notes');
@@ -22,8 +22,28 @@
   let committed=load('travelhub-day-notes-committed',null);
   let dirty=committed===null?Object.values(notes).some(rows=>rows.length):JSON.stringify(notes)!==JSON.stringify(committed);
   let savingNotes=false;
-  window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-  document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(link && dirty && link.target!=='_blank' && !link.getAttribute('href').startsWith('#') && !confirm('Изменения ещё не сохранены. Черновик останется на этом устройстве. Выйти без сохранения?'))event.preventDefault();});
+  let leavingPlanner=false;
+  window.addEventListener('pageshow',()=>{leavingPlanner=false;});
+  window.addEventListener('beforeunload',event=>{if(dirty&&!leavingPlanner){event.preventDefault();event.returnValue='';}});
+  function prepareInternalNavigation(){
+    try{
+      localStorage.setItem(draftKey,JSON.stringify(notes));
+      localStorage.setItem(storageKey('glider-plan-text'),$('#plansText').value);
+    }catch{
+      if((dirty||$('#plansText').value.trim())&&!confirm('Не удалось сохранить черновик на устройстве. Выйти без сохранения изменений?'))return false;
+    }
+    leavingPlanner=true;
+    return true;
+  }
+  function navigateInternal(url){if(prepareInternalNavigation())location.assign(url);}
+  document.addEventListener('click',event=>{
+    const link=event.target.closest('a[href]');
+    if(!link||event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
+    const url=new URL(link.href,location.href);
+    if(url.origin!==location.origin||!['/','/trip','/planner','/map.html','/index.html','/planner.html','/home.html'].includes(url.pathname)||link.getAttribute('href').startsWith('#'))return;
+    if(url.pathname===location.pathname&&url.search===location.search&&url.hash)return;
+    if(!prepareInternalNavigation())event.preventDefault();
+  });
 
   const yearOptions = [];
   for (let year = 1900; year <= 2100; year += 1) yearOptions.push(`<option value="${year}">${year}</option>`);
@@ -329,6 +349,7 @@
   }
 
   function renderSavedContent() {
+    window.GliderNavigation?.update(selected||savedStart);
     if(tripId) document.querySelectorAll('a.map-link,a.map-action').forEach(link=>{
       if(new URL(link.href,location.href).pathname==='/trip') link.href='/trip?'+new URLSearchParams({trip:tripId,date:selected});
     });
@@ -363,6 +384,65 @@
     try{localStorage.setItem(storageKey('travelhub-selected-day'),JSON.stringify(selected));}catch{}
     renderCalendar();renderNotes();
   }
+  const placeCacheKey=storageKey('glider-place-search-v1');
+  let placeCache={};try{placeCache=JSON.parse(localStorage.getItem(placeCacheKey))||{};}catch{}
+  const placePending=new Map();
+  const validPlace=place=>place&&typeof place.name==='string'&&Number.isFinite(place.lat)&&Number.isFinite(place.lng)&&Math.abs(place.lat)<=90&&Math.abs(place.lng)<=180;
+  async function findPlaces(query,refresh=false){
+    if(!query)return {place:null,candidates:[],status:'not_found'};
+    const key=JSON.stringify([query.trim().toLocaleLowerCase('ru'),tripCity]);
+    const cached=placeCache[key];
+    if(!refresh&&cached&&Date.now()-cached.at<(cached.result?.status==='not_found'?60000:86400000)&&Array.isArray(cached.result?.candidates))return cached.result;
+    if(placePending.has(key))return placePending.get(key);
+    const request=(async()=>{
+      // Submit-driven debounce: typing does not send plans to an external service.
+      await new Promise(resolve=>setTimeout(resolve,500));
+      try{
+        const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/places',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,refresh}),signal:AbortSignal.timeout(18000)});
+        if(!response.ok)throw Error('Place search unavailable');
+        const result=await response.json();
+        result.candidates=Array.isArray(result.candidates)?result.candidates.filter(validPlace).slice(0,6):[];
+        if(!validPlace(result.place))result.place=null;
+        if(result.cacheable&&(result.candidates.length||result.status==='not_found')){
+          placeCache[key]={at:Date.now(),result};
+          placeCache=Object.fromEntries(Object.entries(placeCache).sort((a,b)=>b[1].at-a[1].at).slice(0,80));
+          try{localStorage.setItem(placeCacheKey,JSON.stringify(placeCache));}catch{}
+        }
+        return result;
+      }catch{return {place:null,candidates:[],status:'unavailable'};}
+    })();
+    placePending.set(key,request);
+    try{return await request;}finally{placePending.delete(key);}
+  }
+  function placeCaption(place){
+    if(!place)return '';
+    const city=place.city||'';
+    const distance=Number.isFinite(place.distanceKm)&&place.inCity!==true&&(!city||city!==tripCity?.name)?` · ${Math.round(place.distanceKm)} км от центра поездки`:'';
+    return (place.name===city?place.name:[place.name,city].filter(Boolean).join(' — '))+distance;
+  }
+  function placeControls(row){
+    const note=row.note,place=note.place||tripPoints.find(point=>point.id===note.pointId),candidates=(note.placeCandidates||[]).filter(validPlace);
+    const label=place?`<p class="plan-place">${GliderIcons.icon('pin')} ${escapeAttr(placeCaption(place))}</p>`:`<small class="place-missing">${candidates.length?'Выберите место из вариантов':note.placeSearchStatus==='unavailable'?'Поиск недоступен — план сохранён без места':note.placeSearchStatus==='skipped'?'Место не указано':'Место не найдено'}</small>`;
+    const choices=candidates.length?`<details class="place-choices" ${place?'':'open'}><summary>${place?'Изменить место':'Варианты места'}</summary>${candidates.map((candidate,index)=>`<button type="button" class="place-choice ${candidate.inCity?'recommended':''}" data-select-place="${escapeAttr(row.key)}" data-candidate="${index}" ${savingNotes||addingPlan?'disabled':''}><strong>${escapeAttr(placeCaption(candidate))}</strong>${candidate.inCity?'<small>Рекомендуется · город поездки</small>':''}<span>${escapeAttr(candidate.address||candidate.type||'')}</span></button>`).join('')}<button type="button" class="place-skip" data-skip-place="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Оставить без места</button></details>`:'';
+    return label+choices+(!place&&!candidates.length?`<button type="button" class="place-retry" data-retry-place="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Найти место ещё раз</button>`:'');
+  }
+  function editablePlan(key){
+    const row=planRecords().find(row=>row.key===key);if(!row)return null;
+    if(key.startsWith('event:')){
+      const note={...row.note,originalEventId:row.note.id,dayNoteId:createTicketId()};
+      (notes[row.date]||=[]).push(note);return note;
+    }
+    return row.note;
+  }
+  function selectPlace(key,index){
+    if(savingNotes||addingPlan)return;
+    const row=planRecords().find(row=>row.key===key),candidate=index===null?null:row?.note.placeCandidates?.[index];
+    if(!row||(index!==null&&!validPlace(candidate)))return;
+    const note=editablePlan(key);note.place=candidate;note.pointId=null;
+    note.placeSearchStatus=candidate?'matched':'skipped';if(!candidate)note.placeCandidates=[];
+    persistNotes();renderNotes();
+    $('#scheduleStatus').textContent=candidate?'Место выбрано: '+placeCaption(candidate):'План оставлен без места.';
+  }
   function renderOverview() {
     const container=$('#tripOverview');if(!container)return;
     const days=PlanSchedule.days(savedStart,savedEnd);
@@ -376,10 +456,19 @@
       const free=PlanSchedule.SLOTS.filter(startTime=>PlanSchedule.available({date,startTime},occupiedExcept()));
       const options=days.map(d=>`<option value="${d}" ${d===date?'selected':''}>${escapeAttr(parseDate(d).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))}</option>`).join('');
       return `<article class="overview-day ${selected===date?'is-selected':''} ${number?'':'outside-trip'}" data-drop-day="${date}"><h3><button type="button" data-open-plan-day="${date}">${number?'День '+number:'Вне диапазона'} · ${escapeAttr(parseDate(date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))}</button></h3>${entries.length?entries.map(row=>{
-        const note=row.note,located=note.place||tripPoints.some(p=>p.id===note.pointId);
-        return `<div class="overview-plan" draggable="${!savingNotes&&!addingPlan}" data-plan-key="${escapeAttr(row.key)}"><div class="overview-plan-copy">${GliderIcons.icon(note.type||'other')}<time>${escapeAttr(note.startTime||'Время не указано')}</time><strong>${escapeAttr(note.title)}</strong></div>${located?'':'<small class="place-missing">Место не найдено</small>'}${row.key.startsWith('note:')?'<small class="draft-label">План календаря</small>':''}<div class="plan-move"><label>Перенести на<select aria-label="Новый день для ${escapeAttr(note.title)}">${options}</select></label><button class="today-button" type="button" data-move-plan="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Перенести</button></div></div>`;
+        const note=row.note;
+        return `<div class="overview-plan" draggable="${!savingNotes&&!addingPlan}" data-plan-key="${escapeAttr(row.key)}"><div class="overview-plan-copy">${GliderIcons.icon(note.type||'other')}<time>${escapeAttr(note.startTime||'Время не указано')}</time><strong>${escapeAttr(note.title)}</strong></div>${placeControls(row)}${row.key.startsWith('note:')?'<small class="draft-label">План календаря</small>':''}<div class="plan-move"><label>Перенести на<select aria-label="Новый день для ${escapeAttr(note.title)}">${options}</select></label><button class="today-button" type="button" data-move-plan="${escapeAttr(row.key)}" ${savingNotes||addingPlan?'disabled':''}>Перенести</button></div></div>`;
       }).join(''):`<p class="free-slot">${free.length?'Свободно':'Занято перемещениями'} <span>${free.join(' · ')}</span></p>`}</article>`;
     }).join('');
+    container.querySelectorAll('[data-select-place]').forEach(button=>button.onclick=()=>selectPlace(button.dataset.selectPlace,Number(button.dataset.candidate)));
+    container.querySelectorAll('[data-skip-place]').forEach(button=>button.onclick=()=>selectPlace(button.dataset.skipPlace,null));
+    container.querySelectorAll('[data-retry-place]').forEach(button=>button.onclick=async()=>{
+      if(savingNotes||addingPlan)return;
+      const row=planRecords().find(row=>row.key===button.dataset.retryPlace);if(!row)return;
+      const note=editablePlan(row.key);addingPlan=true;persistNotes();renderCalendar();
+      try{const result=await findPlaces(note.placeName||note.title,true);note.place=result.place;note.placeCandidates=result.candidates;note.placeSearchStatus=result.status;note.pointId=null;persistNotes();}
+      finally{addingPlan=false;renderNotes();renderCalendar();}
+    });
     container.querySelectorAll('[data-open-plan-day]').forEach(button=>button.onclick=()=>selectPlanDay(button.dataset.openPlanDay));
     container.querySelectorAll('[data-move-plan]').forEach(button=>button.onclick=()=>movePlan(button.dataset.movePlan,button.closest('.overview-plan').querySelector('select').value));
     container.querySelectorAll('[draggable=true]').forEach(card=>card.addEventListener('dragstart',event=>{event.dataTransfer.setData('application/x-glider-plan',card.dataset.planKey);event.dataTransfer.effectAllowed='move';}));
@@ -424,18 +513,21 @@
     try {
       const hint=PlanSchedule.hints(text,savedStart,savedEnd);let result,offline=false;
       try {
-        const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/parse-plans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,date:savedStart}),signal:AbortSignal.timeout(35000)});
+        const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/parse-plans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,date:savedStart,searchPlaces:false}),signal:AbortSignal.timeout(35000)});
         result=await response.json();if(!response.ok)throw Error(result.error||'Не удалось разобрать планы');
       }catch(error){offline=true;result={items:[{title:text,placeName:text,date:hint.date||savedStart,startTime:hint.time||'',dateExplicit:hint.dateExplicit,timeExplicit:hint.timeExplicit,type:/кафе|ужин|ресторан/i.test(text)?'restaurant':/музей|кремль|парк/i.test(text)?'excursion':'other',description:text,place:null}]};}
+      if(!offline)for(const item of result.items||[]){
+        if(item.place===undefined&&!Array.isArray(item.placeCandidates)){const found=await findPlaces(item.placeName||item.title);item.place=found.place;item.placeCandidates=found.candidates;item.placeSearchStatus=found.status;}
+      }
       const fresh=(result.items||[]).filter(item=>!noteRows().some(row=>row.note.planInput===text&&row.note.planTitle===item.title));
       const assigned=PlanSchedule.allocate(fresh,savedStart,savedEnd,occupiedExcept());
       for(const item of assigned){
-        const note={...item,dayNoteId:createTicketId(),planInput:text,planTitle:item.title,schedule:{automatic:true,dateExplicit:item.dateExplicit===true,timeExplicit:item.timeExplicit===true},description:[item.description,item.placeName&&!item.place?'Место: '+item.placeName+' (место не найдено)':''].filter(Boolean).join('\n')};
+        const note={...item,dayNoteId:createTicketId(),planInput:text,planTitle:item.title,schedule:{automatic:true,dateExplicit:item.dateExplicit===true,timeExplicit:item.timeExplicit===true},description:[item.description,item.placeName&&!item.place&&!item.placeCandidates?.length?'Место: '+item.placeName+' (место не найдено)':''].filter(Boolean).join('\n')};
         (notes[item.date]||=[]).push(note);
       }
       if(assigned[0]){selected=assigned[0].date;const day=parseDate(selected);view=new Date(day.getFullYear(),day.getMonth(),1);}
       persistNotes();renderNotes();
-      $('#plansStatus').textContent=assigned.length?assigned.map(item=>`План распределён: ${parseDate(item.date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}, ${item.startTime} — ${item.title}${!item.place?' (место не найдено)':''}`).join('; ')+(offline?' Текст обработан локально.':''):'Этот план уже добавлен.';
+      $('#plansStatus').textContent=assigned.length?assigned.map(item=>`План распределён: ${parseDate(item.date).toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}, ${item.startTime} — ${item.title}${!item.place?(item.placeCandidates?.length?' (выберите место из вариантов)':' (место не найдено)'):''}`).join('; ')+(offline?' Текст обработан локально.':''):'Этот план уже добавлен.';
       $('#plansText').value='';try{localStorage.setItem(planTextKey,'');}catch{}
     }catch(error){$('#plansStatus').textContent=error.message+' Текст плана сохранён — исправьте его или измените даты поездки.';}
     finally {addingPlan=false;button.textContent='Добавить план';button.setAttribute('aria-busy','false');renderCalendar();}
@@ -450,7 +542,7 @@
     for(const [date,rows] of Object.entries(notes))for(const note of rows){
       if(!note.title?.trim() || !(note.startTime||note.time)){$('#daySaveStatus').textContent='Заполните название и время начала всех событий, включая другие дни. Либо удалите пустые строки.';return;}
       note.dayNoteId=note.dayNoteId||createTicketId();
-      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null,place:note.place||null,schedule:note.schedule||null,originalEventId:note.originalEventId||null});
+      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null,place:note.place||null,placeName:note.placeName||'',schedule:note.schedule||null,originalEventId:note.originalEventId||null});
     }
     persistNotes();savingNotes=true;$('#saveDayBtn').disabled=true;$('#saveDayBtn').textContent='Сохраняем…';
     const controls=[...$('#notesRows').querySelectorAll('input,textarea,select,button'),$('#addEventBtn')];controls.forEach(el=>el.disabled=true);
@@ -482,7 +574,7 @@
   $('#resetDatesBtn').addEventListener('click',()=>{rangeSelecting=true;rangePending=false;rangeStart='';rangeEnd='';renderCalendar();});
   $('#clearDatesBtn').addEventListener('click',()=>saveRange('',''));
   $('#confirmDatesBtn').addEventListener('click',()=>{if(rangeStart&&rangeEnd)saveRange(rangeStart,rangeEnd);});
-  $('#openSelectedDayBtn').addEventListener('click',()=>{if(tripId&&(selected||savedStart))location.href='/trip?'+new URLSearchParams({trip:tripId,date:selected||savedStart});});
+  $('#openSelectedDayBtn').addEventListener('click',()=>{if(tripId&&(selected||savedStart))navigateInternal('/trip?'+new URLSearchParams({trip:tripId,date:selected||savedStart}));});
   $('#startRangeBtn').addEventListener('click',()=>{rangeSelecting=true;$('#calendarGrid').focus();});
   for(const [id,single] of [['rangeModeBtn',false],['singleModeBtn',true]])$("#"+id).addEventListener('click',()=>{singleDayMode=single;rangeSelecting=true;rangePending=false;rangeStart='';rangeEnd='';renderCalendar();});
   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
@@ -519,6 +611,7 @@
         if(!result.ok) throw Error('Не удалось загрузить содержимое поездки. Попробуйте обновить страницу.');
         return result.json();
       }));
+      tripCity=trip.city||{name:trip.destination||trip.title};
       const managed=tripEvents.filter(e=>e.source==='day-notes');
       // The map is allowed to edit or delete calendar-created events. When
       // there is no unsaved local draft, refresh the planner from the server
@@ -555,7 +648,9 @@
       const month = Number.isInteger(m) && m >= 1 && m <= 12 ? m : (trip.month || start.getMonth()+1);
       const year = Number.isInteger(y) && y >= 1900 && y <= 2100 ? y : (trip.year || start.getFullYear());
       view = trip.startDate ? new Date(start.getFullYear(), start.getMonth(), 1) : new Date(year, month - 1, 1);
-      if (!rangeStart || !rangeEnd || !localStorage.getItem(storageKey('travelhub-selected-day'))) selected = '';
+      const requestedDay=params.get('date');
+      if(PlanSchedule.validDate(requestedDay)){selected=requestedDay;const day=parseDate(selected);view=new Date(day.getFullYear(),day.getMonth(),1);try{localStorage.setItem(storageKey('travelhub-selected-day'),JSON.stringify(selected));}catch{}}
+      else if (!rangeStart || !rangeEnd || !localStorage.getItem(storageKey('travelhub-selected-day'))) selected = '';
     } else {
       const selectedDate = parseDate(selected);
       view = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);

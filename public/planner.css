@@ -27,6 +27,13 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--ink)}.topb
 .calendar-footer{flex-wrap:wrap;gap:var(--space-sm)}.plan-text-card input{display:block;width:100%;box-sizing:border-box;font:inherit;margin:var(--space) 0;padding:var(--space);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--ink)}
 .plan-text-card input:focus{outline:2px solid var(--accent-strong);outline-offset:2px}
 @media(max-width:600px){.overview-heading{align-items:flex-start;flex-direction:column}.plan-move{flex-wrap:wrap}#tripOverview{grid-template-columns:minmax(0,1fr)}}
+
+/* Place search choices share the existing journal palette. */
+.plan-place{font-size:12px;color:var(--ink);line-height:1.5;overflow-wrap:anywhere}.plan-place .journal-icon{width:16px;height:16px}
+.place-choices{margin:var(--space-sm) 0}.place-choices summary{cursor:pointer;font-size:12px;color:var(--accent-strong)}
+.place-choice{display:flex;flex-direction:column;gap:var(--space-sm);width:100%;text-align:left;padding:var(--space-sm);margin:var(--space-sm) 0;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--ink);cursor:pointer}
+.place-choice.recommended{border-color:var(--teal)}.place-choice span,.place-choice small{font-size:11px;line-height:1.5}.place-choice small{font-weight:700;color:var(--teal)}
+.place-retry,.place-skip{font:inherit;font-size:12px;color:var(--accent-strong);background:transparent;border:0;padding:var(--space-sm) 0;text-decoration:underline;cursor:pointer}
 /* Use the same tracks for note headings and their input fields. */
 .notes-table-head,.note-row{grid-template-columns:minmax(90px,110px) minmax(90px,110px) minmax(200px,1fr) minmax(135px,170px) 32px;column-gap:16px}
 .notes-table-head>span{min-width:0;padding:0;text-align:left}
@@ -42,4 +49,3 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--ink)}.topb
 .notes-table-head{padding-bottom:24px}
 .note-row{min-height:74px}
 @media(max-width:650px){.notes-table-head{padding-bottom:20px}.note-row{min-height:82px}}
- 

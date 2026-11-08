@@ -14,11 +14,7 @@
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="На главную"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span> Traveler's Glider</a>
-      <a class="map-link" href="/trip" aria-label="Перейти к карте">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
-        <span>Карта маршрута</span><span class="link-arrow">↗</span>
-      </a>
-      <a href="/" class="map-link">← На главную</a>
+      <nav class="site-nav trip-screen-nav" aria-label="Разделы поездки"><a href="/">На главную</a><a href="/" data-trip-screen="calendar">Календарь</a><a href="/" data-trip-screen="map">Карта</a></nav>
     </header>
 
     <main class="page-shell">
@@ -65,7 +61,7 @@
         <p id="plansStatus" role="status" aria-live="polite"></p>
       </section>
       <section class="trip-overview" aria-labelledby="overviewTitle"><div class="overview-heading"><div><p class="eyebrow">ВСЁ ПУТЕШЕСТВИЕ</p><h2 id="overviewTitle">Планы по дням</h2></div><button id="redistributeBtn" class="today-button" type="button">Перераспределить</button></div><p class="muted">Свободные слоты: утро, день и вечер. Планы можно перетащить на день календаря или перенести через список.</p><div id="tripOverview"></div><p id="scheduleStatus" role="status" aria-live="polite"></p></section>
-      <section class="notes-section" aria-labelledby="notesTitle">
+      <section class="notes-section" hidden aria-labelledby="notesTitle">
         <div class="notes-heading">
           <div><p class="eyebrow">ВАШ ПЛАН</p><h2 id="notesTitle">Заметки на день</h2><p id="selectedDateLabel" class="selected-date-label"></p></div>
         </div>
@@ -78,14 +74,18 @@
         </div>
         <div class="notes-actions">
           <button id="addEventBtn" class="add-button" type="button"><span>＋</span> Добавить событие</button>
-          <button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button>
+          <a class="map-action" href="/trip" aria-label="Открыть карту маршрута">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
+            <span>Карта маршрута</span>
+          </a>
         </div>
-        <p id="daySaveStatus" class="day-save-status" role="status" aria-live="polite"></p>
       </section>
 
+      <div class="day-save-actions"><p id="daySaveStatus" role="status" aria-live="polite"></p><button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button></div>
       <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
     </main>
-    <script src="/journal-icons.js"></script>
+    <script src="/trip-navigation.js"></script>
+<script src="/journal-icons.js"></script>
 <script src="/plan-schedule.js"></script>
 <script src="/planner.js"></script>
   <script src="/journal.js"></script>

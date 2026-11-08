@@ -8,7 +8,8 @@ const tripContext = new AsyncLocalStorage();
 const envFile=path.join(__dirname,'..','.env');
 if(fs.existsSync(envFile) && typeof process.loadEnvFile==='function')process.loadEnvFile(envFile);
 const {parsePlans,validDate:validPlanDate}=require('./plan-parser');
-let activePlanRequests=0;
+let activePlanRequests=0,activePlaceRequests=0;
+const {searchPlaces}=require('./place-search');
 
 const PORT = Number(process.env.PORT || 3000);
 const DB = path.join(__dirname, '..', 'data', 'db.json');
@@ -224,7 +225,7 @@ async function geocoding(endpoint) {
   return response.json();
 }
 function cityRecord(city) {
-  return {id:city.id,name:city.name,country:city.country,admin1:city.admin1,latitude:city.latitude,longitude:city.longitude,timezone:city.timezone};
+  return {id:city.id,name:city.name,country:city.country,countryCode:city.country_code||city.countryCode||undefined,admin1:city.admin1,latitude:city.latitude,longitude:city.longitude,timezone:city.timezone};
 }
 function isCity(city) { return /^PPL/.test(city.feature_code || ''); }
 const localCities = [
@@ -307,8 +308,18 @@ const server = http.createServer(async (req, res) => {
       if(!validPlanDate(body.date))return sendJson(res,400,{error:'Выберите день в календаре'});
       if(activePlanRequests>=3)return sendJson(res,429,{error:'Сейчас обрабатываются другие планы. Повторите чуть позже — текст сохранён.'});
       activePlanRequests++;
-      try {return sendJson(res,200,await parsePlans(body.text,{date:body.date,tripStart:trip.startDate,tripEnd:trip.endDate,city:trip.city || {name:trip.destination||trip.title}}));}
+      try {return sendJson(res,200,await parsePlans(body.text,{date:body.date,tripStart:trip.startDate,tripEnd:trip.endDate,city:trip.city || {name:trip.destination||trip.title}},{skipPlaceSearch:body.searchPlaces===false}));}
       finally {activePlanRequests--;}
+    }
+    const placesMatch=pathname.match(/^\/api\/trips\/([^/]+)\/places$/);
+    if(placesMatch && req.method==='POST'){
+      const body=await parseBody(req),trip=readDb().trips.find(t=>t.id===decodeURIComponent(placesMatch[1]));
+      if(!trip)return sendJson(res,404,{error:'Путешествие не найдено'});
+      if(typeof body.query!=='string'||!body.query.trim()||body.query.length>200)return sendJson(res,400,{error:'Название места: от 1 до 200 символов'});
+      if(activePlaceRequests>=3)return sendJson(res,429,{error:'Поиск занят. План можно сохранить без места и повторить поиск позже.'});
+      activePlaceRequests++;
+      try{return sendJson(res,200,await searchPlaces(body.query,trip.city||{name:trip.destination||trip.title},{refresh:body.refresh===true}));}
+      finally{activePlaceRequests--;}
     }
     const daySaveMatch = pathname.match(/^\/api\/trips\/([^/]+)\/day-events$/);
     if (daySaveMatch && req.method === 'PUT') {
@@ -332,7 +343,7 @@ const server = http.createServer(async (req, res) => {
           const place=entry.place;
           if(typeof place.name!=='string'||!place.name.trim()||!Number.isFinite(place.lat)||!Number.isFinite(place.lng)||Math.abs(place.lat)>90||Math.abs(place.lng)>180)return sendJson(res,400,{error:'Некорректные координаты места'});
           let point=db.points.find(p=>(p.tripId||'legacy')===tripId && Math.abs(p.lat-place.lat)<0.000001 && Math.abs(p.lng-place.lng)<0.000001);
-          if(!point){point={id:id('p'),tripId,name:place.name.trim().slice(0,200),lat:place.lat,lng:place.lng,description:typeof place.address==='string'?place.address.slice(0,500):''};db.points.push(point);}
+          if(!point){point={id:id('p'),tripId,name:place.name.trim().slice(0,200),lat:place.lat,lng:place.lng,description:typeof place.address==='string'?place.address.slice(0,500):'',city:String(place.city||'').slice(0,150),countryCode:String(place.countryCode||'').slice(0,2),placeType:String(place.type||'').slice(0,100),source:String(place.source||'').slice(0,30),distanceKm:Number.isFinite(place.distanceKm)?place.distanceKm:null};db.points.push(point);}
           pointId=point.id;
         }
         const existing=db.events.find(e=>e.dayNoteId===entry.dayNoteId && e.source==='day-notes' && e.tripId===tripId);
@@ -341,6 +352,7 @@ const server = http.createServer(async (req, res) => {
         if(original&&imported.has(original.id))return sendJson(res,400,{error:'Одно событие нельзя переносить дважды в одной пачке'});
         if(original)imported.add(original.id);
         const {place,originalEventId,...fields}=entry;
+        if(fields.placeName!==undefined)fields.placeName=String(fields.placeName).slice(0,200);
         if(fields.schedule)fields.schedule={automatic:fields.schedule.automatic===true,dateExplicit:fields.schedule.dateExplicit===true,timeExplicit:fields.schedule.timeExplicit===true};
         let event;try {event=withUtc({...existing,...original,...fields,pointId});} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
         prepared.push({...event,id:existing?.id||original?.id||id('e'),tripId,source:'day-notes',dayNoteId:String(entry.dayNoteId),createdAt:existing?.createdAt||original?.createdAt||new Date().toISOString()});

@@ -13,9 +13,9 @@
 </head>
   <body>
     <header>
-      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></div>
+      <a class="brand" href="/" aria-label="На главную" style="text-decoration:none"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></a>
       <div class="trip">Москва · 12–14 июня 2025</div>
-    <div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
+    <nav class="site-nav trip-screen-nav" aria-label="Разделы поездки"><a href="/">На главную</a><a href="/" data-trip-screen="calendar">Календарь</a><a href="/" data-trip-screen="map">Карта</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
 
     <main>
       <section class="sidebar">
@@ -89,13 +89,17 @@
           <label>Начало<input type="time" id="startTime" required></label>
           <label>Окончание<input type="time" id="endTime"></label>
         </div>
-        <label>Дата окончания (если после полуночи)<input type="date" id="endDate"></label>
+        <label>Дата окончания<input type="date" id="endDate"></label>
         <label>Точка маршрута
           <select id="pointId"><option value="">Без геоточки</option></select>
         </label>
+        <button type="button" id="addPointFromEventBtn" class="inline-add-point">＋ Создать точку</button>
         <label>Описание<textarea id="description" rows="3"></textarea></label>
-        <label>Ссылка на билет / бронь<input type="url" id="bookingUrl" placeholder="https://..."></label>
-        <label>Материалы (ссылки через запятую)<input id="materials" placeholder="https://...jpg, https://...jpg"></label>
+        <label>Фотографии и изображения билетов
+          <input type="file" id="photoFiles" accept="image/jpeg,image/png" multiple>
+        </label>
+        <div class="photo-help">Можно прикрепить несколько изображений JPG или PNG, до 10 МБ каждое.</div>
+        <div id="photoPreview" class="photo-preview"></div>
         <label>Изображение входного билета
           <input type="file" id="ticketImage" accept="image/jpeg,image/png">
         </label>
@@ -150,7 +154,8 @@
       </form>
     </dialog>
 
-    <script src="/journal-icons.js"></script>
+    <script src="/trip-navigation.js"></script>
+<script src="/journal-icons.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/city-sights.js"></script>
     <script src="/plan-schedule.js"></script>

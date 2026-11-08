@@ -298,6 +298,16 @@ body:has(.page-shell) { background:var(--cream); }
   .attractions-panel { flex:0 0 auto; max-height:220px; border-top:0; }
   .sights-grid { grid-template-columns:repeat(auto-fill,minmax(135px,1fr)); }
 }
+
+/* Visible navigation on all trip screens, including mobile and the alternate map entry. */
+.trip-screen-nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.trip-screen-nav a{display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;border:1px solid transparent;border-radius:var(--pill);color:var(--cream);text-decoration:none;font-weight:600;font-size:13px}
+.trip-screen-nav a:hover,.trip-screen-nav a[aria-current=page]{border-color:var(--sand);background:var(--teal)}
+.trip-screen-links{display:flex;flex-wrap:wrap;gap:8px;align-items:center;position:relative;z-index:1}
+.trip-screen-links a{display:inline-flex;align-items:center;min-height:40px;padding:8px 12px;color:var(--teal);background:var(--paper);border:1px solid var(--line);border-radius:var(--pill);text-decoration:none;font-size:12px;font-weight:700}
+.trip-screen-links a:hover{border-color:var(--accent-strong);color:var(--accent-strong)}
+@media(max-width:600px){.trip-screen-nav{width:100%;justify-content:center}.trip-screen-nav a{padding:8px 10px}.trip-screen-links{grid-column:1/-1;justify-content:flex-end;gap:8px}}
+.trip-screen-links{justify-content:flex-end;margin-top:auto;padding:0 var(--space-lg) var(--space-lg)}
 body:has(.map-column) main { grid-template-columns:minmax(390px,430px) minmax(0,1fr); height:calc(100dvh - 80px); min-height:560px; }
 .map-column { display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--cream); }
 body:has(.map-column) .map-wrap { flex:1 1 auto; min-height:0; overflow:hidden; }

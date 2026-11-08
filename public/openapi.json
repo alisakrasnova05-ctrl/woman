@@ -67,13 +67,28 @@
         }
       }
     },
+    "/api/trips/{tripId}/places": {
+      "post": {
+        "tags": ["Планы"],
+        "summary": "Поиск места в городе поездки, соседних городах и стране",
+        "description": "Сервер использует ключ из окружения. Один уверенный результат в городе возвращается в place; неоднозначные и иногородние результаты требуют выбора из candidates. При сбое план можно сохранить без места.",
+        "parameters": [{ "name": "tripId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["query"], "properties": { "query": { "type": "string", "minLength": 1, "maxLength": 200 }, "refresh": { "type": "boolean", "default": false, "description": "Повторить поиск по явной команде пользователя" } } } } } },
+        "responses": {
+          "200": { "description": "place (объект или null), candidates (до 6), status (matched/choose/not_found/unavailable/no_city), scope, source, cacheable. Место содержит name, city, countryCode, lat, lng, address, type, source, distanceKm, inCity." },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "404": { "$ref": "#/components/responses/ApiError" },
+          "429": { "$ref": "#/components/responses/ApiError" }
+        }
+      }
+    },
     "/api/trips/{tripId}/parse-plans": {
       "parameters": [{ "$ref": "#/components/parameters/TripId" }],
       "post": {
         "tags": ["Поездки"],
         "summary": "Разобрать текст планов на события",
         "description": "Возвращает до 8 событий с распознанными временем и местом. При настроенном LLM используется модель, иначе — эвристический разбор. Распознанное место может быть `null`, если геокодирование не нашло координаты.",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["text", "date"], "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 10000, "example": "Утром музей, в 19:30 ужин на Арбате" }, "date": { "type": "string", "format": "date", "example": "2026-07-12" } } } } } },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["text", "date"], "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 10000, "example": "Утром музей, в 19:30 ужин на Арбате" }, "date": { "type": "string", "format": "date", "example": "2026-07-12" }, "searchPlaces": { "type": "boolean", "default": true, "description": "false: только извлечь текст; поиск выполняется отдельным запросом /places с кэшем клиента" } } } } } },
         "responses": {
           "200": { "description": "Результат разбора.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ParsedPlans" } } } },
           "400": { "$ref": "#/components/responses/ApiError" },
@@ -341,7 +356,7 @@
       },
       "ParsedPlans": {
         "type": "object", "required": ["items", "source"],
-        "properties": { "source": { "type": "string", "enum": ["llm", "heuristic"] }, "items": { "type": "array", "maxItems": 8, "items": { "type": "object", "required": ["title", "placeName", "date", "startTime", "type", "description", "place"], "properties": { "title": { "type": "string" }, "placeName": { "type": "string" }, "date": { "type": "string", "format": "date" }, "startTime": { "type": "string" }, "type": { "type": "string", "enum": ["excursion", "stay", "restaurant", "meeting", "other"] }, "description": { "type": "string" }, "place": { "type": "object", "nullable": true, "properties": { "name": { "type": "string" }, "lat": { "type": "number" }, "lng": { "type": "number" }, "address": { "type": "string" } } } } } } }
+        "properties": { "source": { "type": "string", "enum": ["llm", "heuristic"] }, "items": { "type": "array", "maxItems": 8, "items": { "type": "object", "required": ["title", "placeName", "date", "startTime", "type", "description"], "properties": { "title": { "type": "string" }, "placeName": { "type": "string" }, "date": { "type": "string", "format": "date" }, "startTime": { "type": "string" }, "type": { "type": "string", "enum": ["excursion", "stay", "restaurant", "meeting", "other"] }, "description": { "type": "string" }, "place": { "type": "object", "nullable": true, "properties": { "name": { "type": "string" }, "lat": { "type": "number" }, "lng": { "type": "number" }, "address": { "type": "string" } } } } } } }
       }
     }
   }

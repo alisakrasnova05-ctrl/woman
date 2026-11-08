@@ -10,7 +10,7 @@
    const id=note.id||'draft:'+note.dayNoteId;let pointId=note.pointId||null;
    if(!pointId&&note.place&&Number.isFinite(note.place.lat)&&Number.isFinite(note.place.lng)&&Math.abs(note.place.lat)<=90&&Math.abs(note.place.lng)<=180){
     pointId='draft-point:'+note.dayNoteId;
-    previewPoints.push({id:pointId,tripId,name:note.place.name,lat:note.place.lat,lng:note.place.lng,_draft:true});
+    previewPoints.push({...note.place,id:pointId,tripId,name:note.place.name,lat:note.place.lat,lng:note.place.lng,_draft:true});
    }
    if(Schedule.validDate(date)&&Schedule.validTime(note.startTime||note.time)&&note.title?.trim())previewEvents.push({...note,id,tripId,date,pointId,startTime:note.startTime||note.time,startAt:new Date(date+'T'+(note.startTime||note.time)).toISOString(),endAt:Schedule.validTime(note.endTime)?new Date((note.endDate||date)+'T'+note.endTime).toISOString():null,_draft:true,source:'day-notes'});
   }

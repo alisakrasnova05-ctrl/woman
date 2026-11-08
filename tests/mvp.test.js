@@ -6,7 +6,7 @@ const {spawn}=require('node:child_process');
 test('MVP API: cover, four days, route, typed transfers, events, server tickets and restart persistence',async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'glider-mvp-'));
  for(const folder of ['server','data','public'])fs.mkdirSync(path.join(root,folder));
- for(const file of ['index.js','plan-parser.js'])fs.copyFileSync(path.join(__dirname,'../server',file),path.join(root,'server',file));
+ for(const file of ['index.js','plan-parser.js','place-search.js'])fs.copyFileSync(path.join(__dirname,'../server',file),path.join(root,'server',file));
  fs.copyFileSync(path.join(__dirname,'../public/plan-schedule.js'),path.join(root,'public/plan-schedule.js'));
  fs.writeFileSync(path.join(root,'data/db.json'),JSON.stringify({trips:[],points:[],events:[],transfers:[]}));
  let child,base;

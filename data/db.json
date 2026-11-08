@@ -267,6 +267,39 @@
       "endDate": "2026-11-19",
       "datesConfirmed": true,
       "createdAt": "2026-11-08T09:24:23.426Z"
+    },
+    {
+      "id": "trip_1794134684603_i2znc",
+      "title": "туса",
+      "origin": "Набережные Челны",
+      "originCity": {
+        "id": 523750,
+        "name": "Набережные Челны",
+        "country": "Россия",
+        "countryCode": "RU",
+        "admin1": "Татарстан",
+        "latitude": 55.73718,
+        "longitude": 52.41961,
+        "timezone": "Europe/Moscow"
+      },
+      "destination": "Монако",
+      "coverUrl": "/uploads/photo_1794134684259_wi9kl.jpg",
+      "city": {
+        "id": 2993458,
+        "name": "Монако",
+        "country": "Монако",
+        "countryCode": "MC",
+        "admin1": "Commune de Monaco",
+        "latitude": 43.73718,
+        "longitude": 7.42145,
+        "timezone": "Europe/Monaco"
+      },
+      "month": 11,
+      "year": 2028,
+      "startDate": "2028-11-30",
+      "endDate": "2028-12-14",
+      "datesConfirmed": true,
+      "createdAt": "2026-11-08T10:44:44.603Z"
     }
   ],
   "attractions": [
@@ -451,6 +484,19 @@
       "lng": 37.607338,
       "description": "",
       "tripId": "legacy"
+    },
+    {
+      "id": "p_1794135119131_9uucw",
+      "tripId": "trip_1794134684603_i2znc",
+      "name": "Crique des Pêcheurs",
+      "lat": 43.7319187,
+      "lng": 7.4278818,
+      "description": "Crique des Pêcheurs, Монако-Виль, Монако, Monaco, Монако",
+      "city": "Monaco",
+      "countryCode": "MC",
+      "placeType": "beach",
+      "source": "nominatim",
+      "distanceKm": 0.8
     }
   ],
   "events": [
@@ -524,6 +570,54 @@
       "tripId": "trip_1794128774175_57x15",
       "source": "day-notes",
       "createdAt": "2026-11-08T09:19:51.208Z"
+    },
+    {
+      "dayNoteId": "trip_1794134684603_i2znc:9e02599c-c8d4-4de3-bc6a-0c981c9f4b0c",
+      "title": "Туса",
+      "type": "other",
+      "date": "2028-12-01",
+      "startTime": "22:30",
+      "endTime": "",
+      "endDate": "2028-12-01",
+      "description": "Туса в 22:30.",
+      "pointId": null,
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": true,
+        "timeExplicit": true
+      },
+      "startAt": "2028-12-01T19:30:00.000Z",
+      "id": "e_1794135119130_pjuhc",
+      "tripId": "trip_1794134684603_i2znc",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T10:51:59.131Z"
+    },
+    {
+      "dayNoteId": "trip_1794134684603_i2znc:a41a34eb-d4dd-4827-935e-f57b5153c0f6",
+      "title": "Поход на пляж",
+      "type": "excursion",
+      "date": "2028-11-30",
+      "startTime": "14:45",
+      "endTime": "",
+      "endDate": "2028-11-30",
+      "description": "Поход на пляж.",
+      "pointId": "p_1794135119131_9uucw",
+      "bookingUrl": "",
+      "ticket": null,
+      "placeName": "пляж",
+      "schedule": {
+        "automatic": true,
+        "dateExplicit": false,
+        "timeExplicit": true
+      },
+      "startAt": "2028-11-30T11:45:00.000Z",
+      "id": "e_1794135119132_qn50h",
+      "tripId": "trip_1794134684603_i2znc",
+      "source": "day-notes",
+      "createdAt": "2026-11-08T10:51:59.132Z"
     }
   ],
   "transfers": [

@@ -1,7 +1,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {extract,heuristic,parsePlans}=require('../server/plan-parser');
-const context={date:'2026-07-01',city:{name:'Казань'}};
+const context={date:'2026-07-01',city:{name:'Казань',latitude:55.7961,longitude:49.1064}};
 const env={LLM_API_KEY:'test-secret',LLM_BASE_URL:'https://proxy.example/',LLM_MODEL:'test-model'};
 test('fallback extracts Russian dates, relative time and the place without action verbs',()=>{
  const [a,b]=heuristic('12 июля сходить в Кремль после обеда; В 10:30 посетить музей','2026-07-01');
