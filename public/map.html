@@ -3,16 +3,19 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>TravelHub</title>
+    <title>Traveler's Glider</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/theme.css">
-  </head>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/journal.css">
+<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
+</head>
   <body>
     <header>
-      <div class="brand"><span class="brand-mark">✳</span><span>TravelHub</span></div>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></div>
       <div class="trip">Москва · 12–14 июня 2025</div>
-    <div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
+    <div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div><span class="brand-tagline">Планы обретают крылья</span></header>
 
     <main>
       <section class="sidebar">
@@ -134,7 +137,10 @@
       </form>
     </dialog>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/journal-icons.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/city-sights.js"></script>
     <script src="/app.js"></script>
-  </body>
+  <script src="/journal.js"></script>
+</body>
 </html>

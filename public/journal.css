@@ -1,0 +1,85 @@
+/* Traveler's Glider: shared journal identity. Loaded after screen styles. */
+
+.journal-icon {width:24px;height:24px;display:inline-block;vertical-align:middle;flex-shrink:0}
+.brand {display:inline-flex;align-items:center;gap:10px;letter-spacing:-.025em}
+.brand-mark {display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;border:1px solid var(--sage);border-radius:50%;color:var(--cream)!important;background:var(--teal)}
+.brand-mark svg {width:26px;height:26px}
+.brand-tagline {font-size:11px;letter-spacing:.08em;color:var(--cream);opacity:.9}
+header {gap:16px;flex-wrap:wrap;height:auto;min-height:76px;padding-top:14px;padding-bottom:14px}
+button,a,input,select,textarea {transition:transform var(--motion-fast) var(--motion-ease),color var(--motion-fast) var(--motion-ease),background-color var(--motion-fast) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease)}
+button:active:not(:disabled),.map-action:active {transform:scale(.97)}
+button:focus-visible,a:focus-visible {outline:3px solid var(--accent-strong);outline-offset:4px}
+button:disabled {cursor:wait}
+button[aria-busy=true]::before {content:'';display:inline-block;width:13px;height:13px;margin-right:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:journal-spin var(--motion-spin) var(--motion-linear) infinite}
+.history-head::after,.notes-heading::after {content:'';flex:1;margin-left:24px;border-top:1px dashed var(--route-line)}
+.trip-card {overflow:hidden;border-radius:var(--journal-radius);position:relative;isolation:isolate;transition:transform var(--motion-normal) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease);box-shadow:var(--journal-lift)}
+.trip-card:nth-child(3n+2) .cover {background:var(--sage);color:var(--teal)}
+.trip-card:nth-child(3n+3) .cover {background:var(--sand);color:var(--teal)}
+.trip-card .cover {position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;min-height:154px;background:var(--teal);color:var(--cream);padding:16px;align-self:stretch;border-radius:0}
+.cover>.journal-icon {width:62px;height:62px;transform:rotate(-10deg);transition:transform var(--motion-normal) var(--motion-ease)}
+.arrival-stamp {border:1px solid currentColor;border-radius:4px;padding:6px 8px;font:700 10px var(--stamp-font);text-transform:uppercase;letter-spacing:.12em;transform:rotate(-6deg);text-align:center}
+.trip-card h3 {font-family:var(--font-heading);line-height:1.25}
+.trip-card .stats span {font-size:11px;letter-spacing:.02em}
+.trip-card .stats span:last-child {color:var(--accent-strong);font-weight:700}
+.trip-arrow {color:var(--accent-strong)}
+.empty-scene {position:relative;margin:12px auto 24px;width:130px;padding:18px;border-bottom:1px dashed var(--sage);color:var(--accent-strong)}
+.empty-scene svg {width:64px;height:64px;animation:journal-float var(--motion-float) var(--motion-soft) infinite}
+.empty p {font-family:var(--font-heading);font-size:26px;color:var(--ink)}
+.event-kind-icon {display:inline-grid;place-items:center;width:34px;height:34px;border:1px solid var(--line);border-radius:50%;background:var(--paper)}
+.event {transition:transform var(--motion-normal) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease),background-color var(--motion-fast) var(--motion-ease)}
+.now-badge::before {content:'';display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:currentColor;animation:journal-pulse var(--motion-pulse) var(--motion-ease) infinite}
+.day {border-style:dashed;border-radius:var(--radius-sm);font-weight:700}
+.day.active {border-style:solid}
+.calendar-day {position:relative;isolation:isolate}
+.calendar-day.in-trip::before {content:'';position:absolute;inset:3px;border:1px dashed currentColor;border-radius:inherit;opacity:.3;pointer-events:none;animation:journal-reveal var(--motion-normal) var(--motion-ease)}
+.calendar-day.has-plans::after {content:'';position:absolute;bottom:8px;left:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:currentColor;animation:journal-pulse var(--motion-pulse) var(--motion-ease) infinite}
+.calendar-grid.month-arriving {animation:journal-month var(--motion-normal) var(--motion-ease)}
+.journal-marker {display:grid;place-items:center;background:var(--paper);border:2px solid var(--accent-strong);border-radius:50% 50% 50% 8px;color:var(--accent-strong);box-shadow:var(--journal-lift)}
+.journal-marker>.journal-icon,.sight-marker>.journal-icon {width:22px;height:22px;animation:journal-land var(--motion-slow) var(--motion-ease)}
+.journal-marker.marker-selected {background:var(--accent-strong);color:var(--cream);filter:none!important}
+.journal-marker.marker-selected svg {color:var(--cream)!important;animation:journal-bounce var(--motion-slow) var(--motion-ease)}
+.city-marker {background:var(--teal);color:var(--cream);border-color:var(--sage)}
+.sight-marker {background:var(--paper);color:var(--teal);border-color:var(--sage)}
+.sight-marker svg {width:18px;height:18px}
+.journal-route {animation:journal-reveal var(--motion-slow) var(--motion-ease)}
+.journal-enter {animation:journal-arrive var(--motion-slow) var(--motion-ease) both;animation-delay:calc(var(--journal-order,0) * var(--motion-stagger))}
+.journal-toast {position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;display:flex;align-items:center;gap:12px;padding:14px 22px;border:1px solid var(--sage);border-radius:var(--pill);background:var(--teal);color:var(--cream);pointer-events:none}
+.journal-toast path {stroke-dasharray:28;stroke-dashoffset:0;animation:journal-check var(--motion-slow) var(--motion-ease)}
+.journal-progress {display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);margin:16px 0 4px}
+.journal-progress-track {width:120px;border-top:1px dashed var(--sage);position:relative;height:8px;flex-shrink:0}
+.journal-progress-track svg {position:absolute;top:-13px;left:clamp(0%,var(--progress),calc(100% - 24px));color:var(--accent-strong)}
+@media(hover:hover) {
+ .trip-card:hover {transform:translateY(-3px) rotate(-.6deg);border-color:var(--accent-strong)}
+ .trip-card:nth-child(even):hover {transform:translateY(-3px) rotate(.6deg)}
+ .trip-card:hover .cover>.journal-icon {transform:translate(5px,-4px) rotate(0deg)}
+ .event:hover {transform:translateX(2px)}
+}
+@keyframes journal-arrive {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes journal-month {from{opacity:.4;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+@keyframes journal-reveal {from{opacity:0}to{opacity:1}}
+@keyframes journal-land {0%{opacity:0;transform:translateY(-10px) scale(.8)}70%{transform:translateY(2px) scale(1.05)}100%{opacity:1;transform:none}}
+@keyframes journal-bounce {50%{transform:translateY(-5px)}100%{transform:none}}
+@keyframes journal-float {50%{transform:translate(7px,-5px) rotate(6deg)}}
+@keyframes journal-pulse {50%{opacity:.4;transform:scale(.8)}}
+@keyframes journal-spin {to{transform:rotate(360deg)}}
+@keyframes journal-check {from{stroke-dashoffset:28}to{stroke-dashoffset:0}}
+@media(max-width:700px) {
+ .brand-tagline{display:none}.brand{font-size:18px}.brand-mark{width:32px;height:32px}
+ .trip-card .cover{min-height:125px;padding:8px}.cover>.journal-icon{width:38px;height:38px}
+ .arrival-stamp{font-size:8px;padding:4px;letter-spacing:0}.trip-info{min-width:0}.trip-info h3{overflow-wrap:anywhere}
+ .journal-enter{animation-delay:0ms}.trip-card:hover{transform:none}.journal-progress{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce) {
+ *,*::before,*::after {animation:none!important;transition:none!important;scroll-behavior:auto!important}
+ .trip-card:hover,.trip-card:nth-child(even):hover,.event:hover,.trip-card:hover .cover>.journal-icon,button:active:not(:disabled){transform:none}
+}
+
+.journal-marker {filter:none!important}
+/* Three cover compositions, sharing the same card anatomy and reading order. */
+.trip-card:nth-child(3n+2) .cover {flex-direction:row;gap:24px}
+.trip-card:nth-child(3n+2) .arrival-stamp {transform:rotate(5deg)}
+.trip-card:nth-child(3n+3) .cover {align-items:flex-start;justify-content:flex-end}
+.trip-card:nth-child(3n+3) .cover>.journal-icon {position:absolute;right:24px;top:18px;width:94px;height:94px;opacity:.55}
+.trip-card:nth-child(3n+3) .arrival-stamp {position:relative}
+@media(max-width:700px){.trip-card:nth-child(3n+2) .cover{gap:12px}.trip-card:nth-child(3n+3) .cover>.journal-icon{width:64px;height:64px;right:14px}}
+.trip-card:nth-child(3n+1) .cover {background:var(--teal);color:var(--cream)}

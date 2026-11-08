@@ -243,6 +243,30 @@ const server = http.createServer(async (req, res) => {
         days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
       })));
     }
+    const daySaveMatch = pathname.match(/^\/api\/trips\/([^/]+)\/day-events$/);
+    if (daySaveMatch && req.method === 'PUT') {
+      const body = await parseBody(req), db = readDb(), tripId = decodeURIComponent(daySaveMatch[1]);
+      const trip = db.trips.find(t => t.id === tripId);
+      if (!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
+      if (!Array.isArray(body.events) || body.events.length>200) return sendJson(res,400,{error:'Допустимо до 200 событий'});
+      const prepared = [];
+      for (const entry of body.events) {
+        if(!entry || typeof entry!=='object')return sendJson(res,400,{error:'Некорректное событие'});
+        const errors = validateEvent(entry);
+        if(typeof entry.dayNoteId!=='string'||!entry.dayNoteId) errors.push('Не указан идентификатор черновика');
+        if(!['excursion','stay','restaurant','meeting','other'].includes(entry.type))errors.push('Некорректный тип события');
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(entry.date||'') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.startTime||'')) errors.push('Некорректные дата или время');
+        if (!entry.title?.trim() || !entry.startTime || !entry.date) errors.push('Заполните название, дату и время начала каждого события');
+        if (entry.pointId && !db.points.some(p=>p.id===entry.pointId && (p.tripId||'legacy')===tripId)) errors.push('Точка не принадлежит поездке');
+        if (errors.length) return sendJson(res,400,{errors});
+        let event;try {event=withUtc(entry);} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
+        const existing=db.events.find(e=>e.dayNoteId===entry.dayNoteId && e.source==='day-notes' && e.tripId===tripId);
+        prepared.push({...event,id:existing?.id||id('e'),tripId,source:'day-notes',dayNoteId:String(entry.dayNoteId),createdAt:existing?.createdAt||new Date().toISOString()});
+      }
+      if(new Set(prepared.map(e=>e.dayNoteId)).size!==prepared.length) return sendJson(res,400,{error:'Повторяющиеся события в черновике'});
+      db.events=db.events.filter(e=>!(e.source==='day-notes' && e.tripId===tripId));
+      db.events.push(...prepared);writeDb(db);return sendJson(res,200,{events:prepared});
+    }
     const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
     if (req.method === 'DELETE' && tripMatch) {
       const db = readDb();

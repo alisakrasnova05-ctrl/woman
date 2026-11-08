@@ -4,19 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#1f3b3d">
-    <title>План поездки — TravelHub</title>
+    <title>План поездки — Traveler's Glider</title>
     <link rel="stylesheet" href="/theme.css">
     <link rel="stylesheet" href="/planner.css">
-  </head>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/journal.css">
+<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
+</head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/" aria-label="На главную"><span class="brand-mark">✳</span> TravelHub</a>
+      <a class="brand" href="/" aria-label="На главную"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span> Traveler's Glider</a>
       <a class="map-link" href="/trip" aria-label="Перейти к карте">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
         <span>Карта маршрута</span><span class="link-arrow">↗</span>
       </a>
       <a href="/" class="map-link">← На главную</a>
-    </header>
+    <span class="brand-tagline">Планы обретают крылья</span></header>
 
     <main class="page-shell">
       <section class="intro">
@@ -57,7 +60,7 @@
           <div class="notes-table-head"><span>НАЧАЛО</span><span>КОНЕЦ</span><span>СОБЫТИЕ И МЕСТО</span><span>БИЛЕТ</span><span></span></div>
           <div id="notesRows" class="notes-rows"></div>
           <div id="emptyNotes" class="empty-notes"><span class="empty-icon">✎</span><strong>Пока здесь пусто</strong><span>Добавьте время и место, которые хотите посетить</span></div>
-          <div class="notes-foot"><span class="save-indicator"><i></i> Сохраняется автоматически</span><span id="eventCount"></span></div>
+          <div class="notes-foot"><span class="save-indicator"><i></i> Черновик сохраняется автоматически</span><span id="eventCount"></span></div>
         </div>
         <div class="notes-actions">
           <button id="addEventBtn" class="add-button" type="button"><span>＋</span> Добавить событие</button>
@@ -68,8 +71,11 @@
         </div>
       </section>
 
+      <div class="day-save-actions"><p id="daySaveStatus" role="status" aria-live="polite"></p><button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button></div>
       <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
     </main>
-    <script src="/planner.js"></script>
-  </body>
+    <script src="/journal-icons.js"></script>
+<script src="/planner.js"></script>
+  <script src="/journal.js"></script>
+</body>
 </html>

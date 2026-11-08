@@ -232,3 +232,13 @@ body:has(.page-shell) { background:var(--cream); }
 .trip-delete svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .trip-delete:hover { border-color:var(--accent-strong); background:var(--accent-strong); color:var(--cream); }
 .trip-delete:disabled { opacity:.6; cursor:wait; }
+
+/* Journal identity and motion tokens. */
+:root {
+  --icon-museum:#9b432f; --icon-hotel:#655276; --icon-cafe:#805829;
+  --icon-meeting:#355f75; --icon-other:#685c45; --icon-park:#356656; --icon-viewpoint:#795239;
+  --motion-fast:160ms; --motion-normal:280ms; --motion-slow:380ms;
+  --motion-stagger:60ms; --motion-spin:700ms; --motion-pulse:1800ms; --motion-float:3000ms; --motion-ease:cubic-bezier(.2,.7,.3,1); --motion-soft:ease-in-out; --motion-linear:linear;
+  --journal-radius:18px; --journal-lift:0 2px 0 #1f3b3d18;
+  --stamp-font:var(--font-body); --route-line:var(--sage);
+}

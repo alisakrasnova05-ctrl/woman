@@ -1,0 +1,180 @@
+--- a/public/planner.js
++++ b/public/planner.js
+@@ -16,6 +16,13 @@
+   let notes = load('travelhub-day-notes', {});
+   let tripEvents = [], tripPoints = [];
+   let ticketDbPromise;
++  const draftKey=storageKey('travelhub-day-notes');
++  const committedKey=storageKey('travelhub-day-notes-committed');
++  let committed=load('travelhub-day-notes-committed',null);
++  let dirty=committed===null?Object.values(notes).some(rows=>rows.length):JSON.stringify(notes)!==JSON.stringify(committed);
++  let savingNotes=false;
++  window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
++  document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(link && dirty && link.target!=='_blank' && !link.getAttribute('href').startsWith('#') && !confirm('Изменения ещё не сохранены. Черновик останется на этом устройстве. Выйти без сохранения?'))event.preventDefault();});
+ 
+   const yearOptions = [];
+   for (let year = 1900; year <= 2100; year += 1) yearOptions.push(`<option value="${year}">${year}</option>`);
+@@ -93,7 +100,7 @@
+   }
+ 
+   function chooseDay(key) {
+-    if (saving) return;
++    if (saving || savingNotes) return;
+     saveError = '';
+     if (rangePending) {
+       rangeEnd = key;
+@@ -159,7 +166,8 @@
+   }
+ 
+   function persistNotes() {
+-    localStorage.setItem(storageKey('travelhub-day-notes'), JSON.stringify(notes));
++    dirty=true;
++    try {localStorage.setItem(draftKey, JSON.stringify(notes));$('#daySaveStatus').textContent='Есть несохранённые изменения. Черновик сохранён на устройстве.';}catch{$('#daySaveStatus').textContent='Не удалось сохранить черновик на устройстве. Сохраните события перед выходом.';}
+   }
+ 
+   function createTicketId() {
+@@ -178,6 +186,7 @@
+         <input type="time" aria-label="Время начала события" value="${escapeAttr(item.startTime || item.time || '')}" data-field="startTime">
+         <input type="time" aria-label="Время окончания события" value="${escapeAttr(item.endTime || '')}" data-field="endTime">
+         <input type="text" aria-label="Событие и место" placeholder="Например, музей или прогулка по набережной" value="${escapeAttr(item.title || '')}" data-field="title">
++        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">Без точки</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
+         <div class="ticket-cell ${item.ticket ? 'has-ticket' : ''}">
+           <input class="ticket-file-input" type="file" accept=".pdf,image/*" aria-label="Выбрать файл билета" tabindex="-1">
+           <button class="ticket-pick" type="button" title="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}" aria-label="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 7.1-7.1a3.5 3.5 0 0 1 5 5L10 20.5a5 5 0 0 1-7.1-7.1L13 3.3"/></svg><span>${item.ticket ? '' : 'Прикрепить'}</span></button>
+@@ -190,7 +199,7 @@
+     $('#notesRows').querySelectorAll('.note-row').forEach((row) => {
+       const rowDate = selected;
+       const rowIndex = Number(row.dataset.index);
+-      row.querySelectorAll('input').forEach((input) => input.addEventListener('input', () => {
++      row.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('input', () => {
+         const current = notes[rowDate] || [];
+         current[rowIndex][input.dataset.field] = input.value;
+         notes[rowDate] = current;
+@@ -271,6 +280,27 @@
+     return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+   }
+ 
++  $('#saveDayBtn').addEventListener('click',async()=>{
++    if(savingNotes)return;
++    if(!tripId){$('#daySaveStatus').textContent='Откройте календарь конкретного путешествия с главной страницы.';return;}
++    const events=[];
++    for(const [date,rows] of Object.entries(notes))for(const note of rows){
++      if(!note.title?.trim() || !(note.startTime||note.time)){$('#daySaveStatus').textContent='Заполните название и время начала всех событий, включая другие дни. Либо удалите пустые строки.';return;}
++      note.dayNoteId=note.dayNoteId||createTicketId();
++      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null});
++    }
++    persistNotes();savingNotes=true;$('#saveDayBtn').disabled=true;$('#saveDayBtn').textContent='Сохраняем…';
++    const controls=[...$('#notesRows').querySelectorAll('input,textarea,select,button'),$('#addEventBtn')];controls.forEach(el=>el.disabled=true);
++    try{
++      const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/day-events',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({events}),signal:AbortSignal.timeout(15000)});
++      const result=await response.json();if(!response.ok)throw Error(result.error||(result.errors||[]).join(', ')||'Не удалось сохранить события');
++      committed=JSON.parse(JSON.stringify(notes));
++      try{localStorage.setItem(committedKey,JSON.stringify(committed));localStorage.setItem('glider-trips-updated',JSON.stringify({tripId,at:Date.now()}));}catch{}
++      dirty=false;$('#daySaveStatus').textContent='Сохранено. Открываем карту…';
++      location.href='/trip?'+new URLSearchParams({trip:tripId,date:selected});
++    }catch(error){$('#daySaveStatus').textContent='Не удалось сохранить: '+error.message+'. Черновик остался на устройстве.';}
++    finally{savingNotes=false;$('#saveDayBtn').disabled=false;$('#saveDayBtn').textContent='Сохранить и перейти к карте';controls.forEach(el=>el.disabled=false);}
++  });
+   $('#resetDatesBtn').addEventListener('click', () => saveRange('', ''));
+   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
+   $('#nextMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); });
+@@ -306,6 +336,11 @@
+         if(!result.ok) throw Error('Не удалось загрузить содержимое поездки. Попробуйте обновить страницу.');
+         return result.json();
+       }));
++      const managed=tripEvents.filter(e=>e.source==='day-notes');
++      if(!localStorage.getItem(draftKey) && managed.length){
++        notes={};for(const e of managed){(notes[e.date]||=[]).push({...e,dayNoteId:e.dayNoteId});}
++        committed=JSON.parse(JSON.stringify(notes));localStorage.setItem(draftKey,JSON.stringify(notes));localStorage.setItem(committedKey,JSON.stringify(committed));dirty=false;
++      }
+       $('.intro h1').textContent = trip.title;
+       document.title = `${trip.title} — календарь`;
+       rangeStart = trip.startDate || '';
+--- a/public/planner.html
++++ b/public/planner.html
+@@ -57,7 +57,7 @@
+           <div class="notes-table-head"><span>НАЧАЛО</span><span>КОНЕЦ</span><span>СОБЫТИЕ И МЕСТО</span><span>БИЛЕТ</span><span></span></div>
+           <div id="notesRows" class="notes-rows"></div>
+           <div id="emptyNotes" class="empty-notes"><span class="empty-icon">✎</span><strong>Пока здесь пусто</strong><span>Добавьте время и место, которые хотите посетить</span></div>
+-          <div class="notes-foot"><span class="save-indicator"><i></i> Сохраняется автоматически</span><span id="eventCount"></span></div>
++          <div class="notes-foot"><span class="save-indicator"><i></i> Черновик сохраняется автоматически</span><span id="eventCount"></span></div>
+         </div>
+         <div class="notes-actions">
+           <button id="addEventBtn" class="add-button" type="button"><span>＋</span> Добавить событие</button>
+@@ -68,6 +68,7 @@
+         </div>
+       </section>
+ 
++      <div class="day-save-actions"><p id="daySaveStatus" role="status" aria-live="polite"></p><button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button></div>
+       <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
+     </main>
+     <script src="/planner.js"></script>
+--- a/public/planner.css
++++ b/public/planner.css
+@@ -7,3 +7,4 @@
+ @media(max-width:650px){.notes-table-head,.note-row{grid-template-columns:68px 68px minmax(0,1fr) 28px}.notes-table-head span:nth-child(4),.notes-table-head span:nth-child(5){display:none}.note-row{grid-template-rows:40px 30px;min-height:75px;align-items:center}.note-row>input[data-field="startTime"]{grid-column:1;grid-row:1}.note-row>input[data-field="endTime"]{grid-column:2;grid-row:1}.note-row>input[data-field="title"]{grid-column:3;grid-row:1}.note-row>.ticket-cell{grid-column:1/4;grid-row:2;justify-content:flex-end;padding:0 5px 2px}.note-row>.delete-note{grid-column:4;grid-row:1/3;align-self:center}.ticket-cell{gap:5px}.ticket-pick{height:27px}.ticket-download{height:27px;max-width:150px}.ticket-remove{height:27px}}
+ body{font-family:var(--font-body);background:var(--cream);color:var(--ink)}.topbar{height:auto;min-height:72px;background:var(--teal);border-color:#456163;padding:14px max(20px,calc((100vw - 1120px)/2));color:var(--cream)}.topbar .brand{font-family:var(--font-heading);font-weight:400;color:var(--cream)}.topbar .brand-mark{background:var(--accent);color:var(--cream);border-radius:50%}.topbar .map-link{background:transparent;color:var(--cream);border-color:var(--sage);border-radius:var(--pill)}.topbar .map-link:hover{background:var(--sage);color:var(--teal)}.page-shell{padding-top:40px}.intro h1,.calendar-heading h2,.notes-heading h2{font-family:var(--font-heading);font-weight:400;color:var(--teal);letter-spacing:0}.eyebrow{color:var(--accent-strong)}.intro-copy,.selected-date-label,.trip-length small{color:var(--muted)}.trip-length{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:none}.length-icon{background:#f2d4b8;color:var(--accent-strong);border-radius:50%}.calendar-card,.notes-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:none}.calendar-card{padding:23px 27px 17px}.calendar-heading h2,.notes-heading h2{font-size:23px}.month-button,.today-button,.month-picker{background:var(--paper);border-color:var(--line);color:var(--ink);border-radius:var(--pill)}.month-button:hover,.today-button:hover,.month-picker:focus{border-color:var(--accent-strong);color:var(--accent-strong)}.trip-date-controls{background:#efe3d1;border-color:var(--line);border-radius:var(--radius-sm)}.trip-date-controls label{color:#465651}.trip-date-controls input{background:var(--paper);border-color:var(--line);color:var(--ink)}.weekdays{color:#58645d}.calendar-day{color:var(--ink)}.calendar-day.outside{color:#8b8c80}.calendar-day.in-trip{background:#dce9df;color:#31584c}.calendar-day.range-start,.calendar-day.range-end{background:var(--sage);color:#183b36}.calendar-day.selected-day{background:var(--accent-strong);color:var(--cream);box-shadow:none}.calendar-day:hover{background:#f2d4b8}.calendar-footer,.notes-foot,.page-footer{border-color:var(--line);color:var(--muted)}.notes-table-head{background:#efe3d1;color:#475752;border-color:var(--line)}.note-row{border-color:#e6d8c6}.note-row input{color:var(--ink)}.note-row input:focus{border-color:var(--accent-strong);background:#fffdf8}.empty-notes{color:var(--muted)}.empty-icon{background:#efe3d1;color:var(--accent-strong)}.empty-notes strong{color:var(--teal)}.save-indicator i{background:#477a66}.add-button{background:var(--accent-strong);color:var(--cream);border:1px solid var(--accent-strong);border-radius:var(--pill);box-shadow:none}.add-button:hover{background:var(--accent);color:var(--paper);border-color:var(--accent);transform:none}.map-action{background:transparent;color:var(--accent-strong);border-color:var(--accent-strong);border-radius:var(--pill)}.map-action:hover{background:#f2d4b8;transform:none}.ticket-pick,.ticket-download,.ticket-remove{background:var(--paper);color:var(--accent-strong);border-color:var(--line)}.ticket-pick:hover,.ticket-download:hover{background:#f2d4b8;border-color:var(--accent-strong)}.ticket-remove:hover{background:#f7ded4;color:var(--accent-strong)}.page-footer{font-family:var(--font-heading);font-size:13px}
+ .notes-actions{align-items:center;gap:12px}.notes-actions .add-button,.notes-actions .map-action{height:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;line-height:1}.notes-actions .add-button span{line-height:1;margin-right:7px}#savedTripContent{display:grid;gap:12px;margin:0 0 18px}#savedTripContent details{padding:0 16px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);color:var(--ink)}#savedTripContent summary{padding:14px 0;color:var(--teal);font-weight:700;cursor:pointer}#savedTripContent details[open]>summary{border-bottom:1px solid var(--line)}#savedTripContent details>ul,#savedTripContent details>p{margin:12px 0 16px}#savedTripContent details>ul{padding-left:22px}#savedTripContent li+li{margin-top:8px}
++.day-save-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:24px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--paper)}#daySaveStatus{font-size:13px;flex:1}.day-note-details{grid-column:1/-1;padding:8px 0;grid-row:2}.day-note-details label{display:block;font-size:12px;margin:8px 0}.day-note-details textarea,.day-note-details select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--paper);color:var(--ink)}.note-row{position:relative}.note-row>.ticket-cell,.note-row>.delete-note,.note-row>input{grid-row:1}@media(max-width:650px){.note-row .day-note-details{grid-row:3}.note-row{grid-template-rows:auto auto auto}.note-row>.ticket-cell{grid-row:2}.day-save-actions .add-button{width:100%}}
+--- a/public/app.js
++++ b/public/app.js
+@@ -47,6 +47,8 @@
+   other: { label: 'Другой транспорт', icon: '🚌', color: '#64748b' },
+ };
+ 
++const requestedDay = new URLSearchParams(location.search).get('date');
++const focusedDay = /^\d{4}-\d{2}-\d{2}$/.test(requestedDay || '') && Number.isFinite(Date.parse(requestedDay)) && new Date(requestedDay).toISOString().slice(0,10)===requestedDay ? requestedDay : null;
+ const activeTripId = new URLSearchParams(location.search).get('trip') || 'legacy';
+ async function api(endpoint, options) {
+   if (/^\/api\/(points|events|transfers)(\/|$|\?)/.test(endpoint)) endpoint += (endpoint.includes('?') ? '&' : '?') + 'tripId=' + encodeURIComponent(activeTripId);
+@@ -76,7 +78,7 @@
+   document.querySelector('.trip').textContent = trip.title + ' · ' + (trip.startDate || 'Даты не выбраны');
+   tripStartDate = trip.startDate;
+   tripEndDate = trip.endDate;
+-  selectedDate = trip.startDate;
++  selectedDate = focusedDay || trip.startDate;
+   await loadData();
+   if (trip.city && Number.isFinite(trip.city.latitude) && Number.isFinite(trip.city.longitude)) {
+     const city = trip.city;
+@@ -107,7 +109,7 @@
+ 
+ function dates() {
+   const allItems = [...events, ...transfers];
+-  const dateSet = new Set();
++  const dateSet = new Set(focusedDay ? [focusedDay] : []);
+   if (tripStartDate && tripEndDate) {
+     const current = new Date(tripStartDate+'T00:00:00Z');
+     const end = new Date(tripEndDate+'T00:00:00Z');
+--- a/server/index.js
++++ b/server/index.js
+@@ -243,6 +243,30 @@
+         days: trip.startDate && trip.endDate ? Math.max(1, Math.round((new Date(trip.endDate)-new Date(trip.startDate))/86400000)+1) : 0,
+       })));
+     }
++    const daySaveMatch = pathname.match(/^\/api\/trips\/([^/]+)\/day-events$/);
++    if (daySaveMatch && req.method === 'PUT') {
++      const body = await parseBody(req), db = readDb(), tripId = decodeURIComponent(daySaveMatch[1]);
++      const trip = db.trips.find(t => t.id === tripId);
++      if (!trip) return sendJson(res,404,{error:'Путешествие не найдено'});
++      if (!Array.isArray(body.events) || body.events.length>200) return sendJson(res,400,{error:'Допустимо до 200 событий'});
++      const prepared = [];
++      for (const entry of body.events) {
++        if(!entry || typeof entry!=='object')return sendJson(res,400,{error:'Некорректное событие'});
++        const errors = validateEvent(entry);
++        if(typeof entry.dayNoteId!=='string'||!entry.dayNoteId) errors.push('Не указан идентификатор черновика');
++        if(!['excursion','stay','restaurant','meeting','other'].includes(entry.type))errors.push('Некорректный тип события');
++        if(!/^\d{4}-\d{2}-\d{2}$/.test(entry.date||'') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.startTime||'')) errors.push('Некорректные дата или время');
++        if (!entry.title?.trim() || !entry.startTime || !entry.date) errors.push('Заполните название, дату и время начала каждого события');
++        if (entry.pointId && !db.points.some(p=>p.id===entry.pointId && (p.tripId||'legacy')===tripId)) errors.push('Точка не принадлежит поездке');
++        if (errors.length) return sendJson(res,400,{errors});
++        let event;try {event=withUtc(entry);} catch {return sendJson(res,400,{error:'Некорректные дата или время'});}
++        const existing=db.events.find(e=>e.dayNoteId===entry.dayNoteId && e.source==='day-notes' && e.tripId===tripId);
++        prepared.push({...event,id:existing?.id||id('e'),tripId,source:'day-notes',dayNoteId:String(entry.dayNoteId),createdAt:existing?.createdAt||new Date().toISOString()});
++      }
++      if(new Set(prepared.map(e=>e.dayNoteId)).size!==prepared.length) return sendJson(res,400,{error:'Повторяющиеся события в черновике'});
++      db.events=db.events.filter(e=>!(e.source==='day-notes' && e.tripId===tripId));
++      db.events.push(...prepared);writeDb(db);return sendJson(res,200,{events:prepared});
++    }
+     const tripMatch = pathname.match(/^\/api\/trips\/([^/]+)$/);
+     if (req.method === 'DELETE' && tripMatch) {
+       const db = readDb();

@@ -1,0 +1,481 @@
+--- a/public/app.js
++++ b/public/app.js
+@@ -32,19 +32,19 @@
+ });
+ 
+ const eventIcons = {
+-  excursion: '🏛️',
+-  stay: '🛏️',
+-  restaurant: '🍽️',
+-  meeting: '🤝',
+-  other: '✨',
++  excursion: GliderIcons.icon("excursion"),
++  stay: GliderIcons.icon("stay"),
++  restaurant: GliderIcons.icon("restaurant"),
++  meeting: GliderIcons.icon("meeting"),
++  other: GliderIcons.icon("other"),
+ };
+ 
+ const transportMeta = {
+-  walking: { label: 'Пешком', icon: '🚶', color: '#0ea5e9' },
+-  car: { label: 'Автомобиль', icon: '🚗', color: '#f97316' },
+-  train: { label: 'Поезд', icon: '🚆', color: '#8b5cf6' },
+-  plane: { label: 'Самолёт', icon: '✈️', color: '#2563eb' },
+-  other: { label: 'Другой транспорт', icon: '🚌', color: '#64748b' },
++  walking: { label: 'Пешком', icon: GliderIcons.icon("walking"), color: '#467568' },
++  car: { label: 'Автомобиль', icon: GliderIcons.icon("car"), color: '#a63d2b' },
++  train: { label: 'Поезд', icon: GliderIcons.icon("train"), color: '#795977' },
++  plane: { label: 'Самолёт', icon: GliderIcons.icon("plane"), color: '#1f3b3d' },
++  other: { label: 'Другой транспорт', icon: GliderIcons.icon("other"), color: '#75614d' },
+ };
+ 
+ const requestedDay = new URLSearchParams(location.search).get('date');
+@@ -83,13 +83,13 @@
+   if (trip.city && Number.isFinite(trip.city.latitude) && Number.isFinite(trip.city.longitude)) {
+     const city = trip.city;
+     map.setView([city.latitude, city.longitude], 12);
+-    L.marker([city.latitude, city.longitude], {title:city.name}).addTo(map).bindPopup(esc(city.name));
++    L.marker([city.latitude, city.longitude], {title:city.name,icon:L.divIcon({className:"journal-marker city-marker",html:GliderIcons.icon("glider"),iconSize:[36,36],iconAnchor:[18,30]})}).addTo(map).bindPopup(esc(city.name));
+     if (!points.length) document.querySelector('.map-hint').textContent = 'Добавьте первую точку маршрута';
+   }
+   attractions=await api('/api/attractions');
+   $('#attractionId').innerHTML='<option value="">Без экскурсионной точки</option>'+attractions.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+   renderAttractions();
+-  (trip.city ? [] : attractions).forEach(a=>{const m=L.marker([a.lat,a.lng]).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
++  (trip.city ? [] : attractions).forEach(a=>{const m=L.marker([a.lat,a.lng],{icon:L.divIcon({className:"journal-marker",html:GliderIcons.icon("excursion"),iconSize:[34,34],iconAnchor:[17,30]})}).addTo(map);m.on('click',()=>openAttraction(a.id));attractionMarkers[a.id]=m;});
+   const availableDates = dates();
+   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
+   fillPointSelects();
+@@ -250,7 +250,7 @@
+   return `
+     <article class="timeline-item transfer-card ${selectedKey === key ? 'selected' : ''}" data-kind="transfer" data-id="${esc(transfer.id)}">
+       <div class="event-actions">
+-        <button class="icon" type="button" data-edit-transfer="${esc(transfer.id)}">✎</button>
++        <button class="icon" type="button" data-edit-transfer="${esc(transfer.id)}" aria-label="Редактировать">${GliderIcons.icon("edit")}</button>
+         <button class="icon" type="button" data-delete-transfer="${esc(transfer.id)}">×</button>
+       </div>
+       <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${meta.icon}</span><span class="event-time-copy">Дорога · ${esc(meta.label)}</span></div>
+@@ -273,7 +273,7 @@
+ 
+   points.forEach((point) => {
+     const key = `point:${point.id}`;
+-    const marker = L.marker([point.lat, point.lng])
++    const marker = L.marker([point.lat, point.lng], {icon:L.divIcon({className:"journal-marker",html:GliderIcons.icon(events.find(e=>e.pointId===point.id)?.type || "pin"),iconSize:[34,34],iconAnchor:[17,30]})})
+       .addTo(map)
+       .bindPopup(pointPopup(point));
+     const selectedPoint = events.some((event) => selectedKey === itemKey('event', event.id) && event.pointId === point.id);
+@@ -297,6 +297,7 @@
+         weight: selected ? 7 : 4,
+         opacity: selected ? 1 : 0.8,
+         dashArray: '9 7',
++        className: 'journal-route',
+       },
+     )
+       .addTo(map)
+@@ -610,16 +611,16 @@
+   return `
+     <article class="timeline-item event ${selectedKey === itemKey('event', event.id) ? 'selected' : ''}" data-kind="event" data-id="${esc(event.id)}">
+       <div class="event-actions">
+-        <button class="icon" type="button" data-edit-event="${esc(event.id)}">✎</button>
++        <button class="icon" type="button" data-edit-event="${esc(event.id)}" aria-label="Редактировать">${GliderIcons.icon("edit")}</button>
+         <button class="icon" type="button" data-delete-event="${esc(event.id)}">×</button>
+       </div>
+-      <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${eventIcons[event.type] || '✨'}</span><span class="event-time-copy">${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</span></div>
++      <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${eventIcons[event.type] || GliderIcons.icon("other")}</span><span class="event-time-copy">${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</span></div>
+       <div class="event-title">${esc(event.title)}</div>
+-      <div class="event-meta">${point ? `📍 ${esc(point.name)}` : 'Без геоточки'}</div>
++      <div class="event-meta">${point ? `${GliderIcons.icon("pin")} ${esc(point.name)}` : 'Без геоточки'}</div>
+       ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
+-      ${attraction ? `<div class="event-meta">📸 ${esc(attraction.name)}</div><div class="materials">${attractionPhotos}</div>` : ''}
++      ${attraction ? `<div class="event-meta">${GliderIcons.icon("excursion")} ${esc(attraction.name)}</div><div class="materials">${attractionPhotos}</div>` : ''}
+       ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
+-      ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">🎟 Бронь / билет</a></div>` : ''}
++      ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">${GliderIcons.icon("ticket")} Бронь / билет</a></div>` : ''}
+       ${photos ? `<div class="materials">${photos}</div>` : ''}
+     </article>
+   `;
+--- a/public/city-sights.js
++++ b/public/city-sights.js
+@@ -34,7 +34,7 @@
+     sights = cached.items; status('Не удалось обновить достопримечательности. Показан сохранённый кэш.');
+   }
+   sights.forEach(sight => {
+-    const marker = L.marker([sight.lat,sight.lng], {zIndexOffset:300,riseOnHover:true,icon:L.divIcon({className:'sight-marker',html:'<span aria-hidden="true">★</span>',iconSize:[28,28],iconAnchor:[14,14]}),title:sight.name}).addTo(map);
++    const marker = L.marker([sight.lat,sight.lng], {zIndexOffset:300,riseOnHover:true,icon:L.divIcon({className:'sight-marker',html:GliderIcons.icon(sight.tags?.tourism === 'viewpoint' ? 'viewpoint' : sight.tags?.tourism === 'museum' ? 'excursion' : 'other'),iconSize:[28,28],iconAnchor:[14,14]}),title:sight.name}).addTo(map);
+     const box=document.createElement('div'); box.className='sight-popup';
+     const title=document.createElement('strong'); title.textContent=sight.name;box.append(title);
+     const desc=document.createElement('p');desc.textContent=sight.tags.description||sight.tags['description:ru']||`Объект OpenStreetMap · ${sight.tags.tourism||sight.tags.historic||'достопримечательность'}`;box.append(desc);
+--- a/public/home.html
++++ b/public/home.html
+@@ -3,18 +3,21 @@
+   <head>
+     <meta charset="utf-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+-    <title>Traveler’s Glider — путешествия</title>
++    <title>Traveler's Glider — путешествия</title>
+     <link rel="stylesheet" href="/home.css">
+     <link rel="stylesheet" href="/theme.css">
+-  </head>
++  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
++<link rel="stylesheet" href="/journal.css">
++<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
++</head>
+   <body>
+     <header>
+-      <div class="brand"><span class="brand-mark">✳</span><span>Traveler’s Glider</span></div>
++      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></div>
+       <nav class="site-nav" aria-label="Навигация">
+         <a href="#tripForm">Новая поездка</a>
+         <a href="#trips">Мои путешествия</a>
+       </nav>
+-    </header>
++    <span class="brand-tagline">Планы обретают крылья</span></header>
+     <main>
+       <section class="create-panel">
+         <div>
+@@ -34,7 +37,9 @@
+         <div id="trips" class="trip-list"></div>
+       </section>
+     </main>
+-    <script src="/city-picker.js"></script>
++    <script src="/journal-icons.js"></script>
++<script src="/city-picker.js"></script>
+     <script src="/home.js"></script>
+-  </body>
++  <script src="/journal.js"></script>
++</body>
+ </html>
+--- a/public/home.js
++++ b/public/home.js
+@@ -1,5 +1,5 @@
+ function calendarUrl(trip){const date=new Date(trip.startDate+'T12:00:00');return '/planner?'+new URLSearchParams({trip:trip.id,month:trip.month||date.getMonth()+1,year:trip.year||date.getFullYear()})}
+-const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">✈</div><button class="trip-delete" type="button" aria-label="Удалить путешествие" title="Удалить путешествие"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate&&t.endDate?t.startDate===t.endDate?t.startDate:t.startDate+' — '+t.endDate:'Даты не выбраны'}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div style="font-size:32px">🧭</div><p>Путешествий пока нет</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>{c.onclick=()=>{const trip=allTrips.find(t=>t.id===c.dataset.id);if(trip)location.href=calendarUrl(trip)};const remove=c.querySelector('.trip-delete');remove.onclick=async event=>{event.stopPropagation();const trip=allTrips.find(t=>t.id===c.dataset.id);if(!trip||!confirm('Удалить путешествие «'+trip.title+'»? Все его события и точки маршрута тоже будут удалены.'))return;remove.disabled=true;try{await api('/api/trips/'+encodeURIComponent(trip.id),{method:'DELETE'});await load()}catch(error){alert('Не удалось удалить путешествие: '+error.message);remove.disabled=false}}})}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href=calendarUrl(t)}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
++const $=s=>document.querySelector(s);const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];const now=new Date();const month=$('#month'),year=$('#year');month.innerHTML=months.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');year.innerHTML=Array.from({length:6},(_,i)=>now.getFullYear()+i).map((y,i)=>`<option value="${y}" ${i===0?'selected':''}>${y}</option>`).join('');const api=(u,o)=>fetch(u,{headers:{'Content-Type':'application/json'},...o}).then(async r=>{const d=await r.json();if(!r.ok)throw Error((d.errors||[d.error]).join(', '));return d});function format(t){return `${months[t.month-1]} ${t.year}`}let allTrips=[], shown=8; function render(list){allTrips=list;$('#count').textContent=list.length?`${list.length} ${list.length===1?'поездка':'поездки'}`:'';$('#trips').innerHTML=list.length?list.slice(0,shown).map(t=>`<article class="trip-card" data-id="${t.id}"><div class="cover">${GliderIcons.icon("glider")}<span class="arrival-stamp">${format(t)}</span></div><button class="trip-delete" type="button" aria-label="Удалить путешествие" title="Удалить путешествие"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button><div class="trip-info"><h3>${esc(t.title)}</h3><div class="trip-meta">${format(t)} · ${t.startDate&&t.endDate?t.startDate===t.endDate?t.startDate:t.startDate+' — '+t.endDate:'Даты не выбраны'}</div><div class="stats"><span>${t.pointsCount} точек</span><span>${t.eventsCount} событий</span><span>В полёте ${t.days} дн.</span></div></div><div class="trip-arrow">→</div></article>`).join(''):'<div class="empty"><div class="empty-scene"><svg class="journal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></div><p>Куда отправимся?</p><small>Создайте первую поездку в панели выше.</small></div>';if(list.length>shown){const b=document.createElement('button');b.className='add-btn';b.textContent='Показать ещё';b.onclick=()=>{shown+=8;render(allTrips)};$('#trips').append(b)}document.querySelectorAll('.trip-card').forEach(c=>{c.onclick=()=>{const trip=allTrips.find(t=>t.id===c.dataset.id);if(trip)location.href=calendarUrl(trip)};const remove=c.querySelector('.trip-delete');remove.onclick=async event=>{event.stopPropagation();const trip=allTrips.find(t=>t.id===c.dataset.id);if(!trip||!confirm('Удалить путешествие «'+trip.title+'»? Все его события и точки маршрута тоже будут удалены.'))return;remove.disabled=true;try{await api('/api/trips/'+encodeURIComponent(trip.id),{method:'DELETE'});await load()}catch(error){alert('Не удалось удалить путешествие: '+error.message);remove.disabled=false}}})}function esc(v=''){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}async function load(){render(await api('/api/trips'))}$('#tripForm').onsubmit=async e=>{e.preventDefault();const destination=$('#destination').value.trim();if(!destination){$('#formError').textContent='Напишите место назначения.';$('#destination').focus();return}const city=window.cityPicker.getSelection();const fallback=window.cityPicker.allowFallback();if(!city&&!fallback){$('#formError').textContent='Выберите город из списка';return}try{const t=await api('/api/trips',{method:'POST',body:JSON.stringify({destination,month:month.value,year:year.value,city,cityFallback:!city&&fallback})});if(!t.id)throw Error('Сервер не подтвердил создание поездки');location.href=calendarUrl(t)}catch(err){$('#formError').textContent=err.message}};load().catch(e=>$('#trips').innerHTML=`<div class="error">${esc(e.message)}</div>`);
+ 
+ const navigationMessage=sessionStorage.getItem('trip-navigation-message');if(navigationMessage){$('#formError').textContent=navigationMessage;sessionStorage.removeItem('trip-navigation-message')}
+ 
+--- a/public/index.html
++++ b/public/index.html
+@@ -3,15 +3,18 @@
+   <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+-    <title>TravelHub</title>
++    <title>Traveler's Glider</title>
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+     <link rel="stylesheet" href="/styles.css">
+-  <link rel="stylesheet" href="/theme.css"></head>
++  <link rel="stylesheet" href="/theme.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
++<link rel="stylesheet" href="/journal.css">
++<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
++</head>
+   <body>
+     <header>
+-      <a class="brand" href="/" style="text-decoration:none"><span class="brand-mark">✳</span><span>TravelHub</span></a>
++      <a class="brand" href="/" style="text-decoration:none"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></a>
+       <div class="trip">Москва · 12–14 июня 2025</div>
+-    <nav class="site-nav" aria-label="Навигация"><a href="/">На главную</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
++    <nav class="site-nav" aria-label="Навигация"><a href="/">На главную</a></nav><div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div><span class="brand-tagline">Планы обретают крылья</span></header>
+ 
+     <main>
+       <section class="sidebar">
+@@ -157,7 +160,9 @@
+             </form>
+         </div>
+     </dialog>
+-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
++    <script src="/journal-icons.js"></script>
++<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+     <script src="/city-sights.js"></script><script src="/app.js"></script>
+-  </body>
++  <script src="/journal.js"></script>
++</body>
+ </html>
+--- a/public/map.html
++++ b/public/map.html
+@@ -3,16 +3,19 @@
+   <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+-    <title>TravelHub</title>
++    <title>Traveler's Glider</title>
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+     <link rel="stylesheet" href="/styles.css">
+     <link rel="stylesheet" href="/theme.css">
+-  </head>
++  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
++<link rel="stylesheet" href="/journal.css">
++<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
++</head>
+   <body>
+     <header>
+-      <div class="brand"><span class="brand-mark">✳</span><span>TravelHub</span></div>
++      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span><span>Traveler's Glider</span></div>
+       <div class="trip">Москва · 12–14 июня 2025</div>
+-    <div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div></header>
++    <div class="header-tools"><span id="localClock"></span><button id="locateBtn" class="secondary">◎ Где я?</button></div><span class="brand-tagline">Планы обретают крылья</span></header>
+ 
+     <main>
+       <section class="sidebar">
+@@ -155,7 +158,10 @@
+             </form>
+         </div>
+     </dialog>
+-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
++    <script src="/journal-icons.js"></script>
++<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
++    <script src="/city-sights.js"></script>
+     <script src="/app.js"></script>
+-  </body>
++  <script src="/journal.js"></script>
++</body>
+ </html>
+--- a/public/planner.html
++++ b/public/planner.html
+@@ -4,19 +4,22 @@
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1">
+     <meta name="theme-color" content="#1f3b3d">
+-    <title>План поездки — TravelHub</title>
++    <title>План поездки — Traveler's Glider</title>
+     <link rel="stylesheet" href="/theme.css">
+     <link rel="stylesheet" href="/planner.css">
+-  </head>
++  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
++<link rel="stylesheet" href="/journal.css">
++<meta name="description" content="Traveler&#39;s Glider — ваш живой журнал путешествий.">
++</head>
+   <body>
+     <header class="topbar">
+-      <a class="brand" href="/" aria-label="На главную"><span class="brand-mark">✳</span> TravelHub</a>
++      <a class="brand" href="/" aria-label="На главную"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></svg></span> Traveler's Glider</a>
+       <a class="map-link" href="/trip" aria-label="Перейти к карте">
+         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/></svg>
+         <span>Карта маршрута</span><span class="link-arrow">↗</span>
+       </a>
+       <a href="/" class="map-link">← На главную</a>
+-    </header>
++    <span class="brand-tagline">Планы обретают крылья</span></header>
+ 
+     <main class="page-shell">
+       <section class="intro">
+@@ -71,6 +74,8 @@
+       <div class="day-save-actions"><p id="daySaveStatus" role="status" aria-live="polite"></p><button id="saveDayBtn" class="add-button" type="button">Сохранить и перейти к карте</button></div>
+       <footer class="page-footer"><span>Хорошие поездки начинаются с хорошего плана.</span></footer>
+     </main>
+-    <script src="/planner.js"></script>
+-  </body>
++    <script src="/journal-icons.js"></script>
++<script src="/planner.js"></script>
++  <script src="/journal.js"></script>
++</body>
+ </html>
+--- a/public/planner.js
++++ b/public/planner.js
+@@ -63,6 +63,13 @@
+     const formatDay = key => parseDate(key).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+     $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeStart && rangeEnd ? `Поездка: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
+     $('#resetDatesBtn').disabled = saving || (!savedStart && !rangeStart);
++    let progress = document.querySelector('#journalProgress');
++    if (!progress) {progress=document.createElement('div');progress.id='journalProgress';progress.className='journal-progress';document.querySelector('.calendar-card').append(progress);}
++    const total = savedStart && savedEnd ? Math.round((parseDate(savedEnd)-parseDate(savedStart))/86400000)+1 : 0;
++    let filled=0;
++    for(let i=0;i<total;i++) {const date=parseDate(savedStart);date.setDate(date.getDate()+i);const key=dateKey(date);if(tripEvents.some(e=>e.date<=key && (e.endDate || e.date)>=key)) filled++;}
++    progress.innerHTML = total>0 ? `<span class="journal-progress-track" style="--progress:${filled/total*100}%">${GliderIcons.icon('glider')}</span><span>Дни с сохранёнными событиями: ${filled} из ${total}</span>` : '';
++
+     const first = new Date(view.getFullYear(), view.getMonth(), 1);
+     const offset = (first.getDay() + 6) % 7;
+     const start = new Date(view.getFullYear(), view.getMonth(), 1 - offset);
+@@ -75,6 +82,7 @@
+       const classes = ['calendar-day'];
+       if (day.getMonth() !== view.getMonth()) classes.push('outside');
+       if (inside) classes.push('in-trip');
++      if (tripEvents.some(event => event.date <= key && (event.endDate || event.date) >= key)) classes.push('has-plans');
+       if (key === rangeStart && rangeStart) classes.push('range-start');
+       if (key === rangeEnd && rangeEnd && rangeEnd !== rangeStart && validRange) classes.push('range-end');
+       if (key === selected) classes.push('selected-day');
+@@ -269,7 +277,7 @@
+       .sort((a,b) => (a.date+'T'+a.startTime).localeCompare(b.date+'T'+b.startTime));
+     const eventHtml = events.map(event => {
+       const point = tripPoints.find(p => p.id === event.pointId);
+-      return `<li><strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
++      return `<li>${GliderIcons.icon(event.type || "other")} <strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
+     }).join('');
+     $('#savedTripContent').innerHTML = tripId ?
+       `<details open><summary>События поездки на выбранный день (${events.length})</summary>${eventHtml ? `<ul>${eventHtml}</ul>` : '<p>На этот день сохранённых событий нет.</p>'}</details>
+@@ -342,7 +350,7 @@
+         committed=JSON.parse(JSON.stringify(notes));localStorage.setItem(draftKey,JSON.stringify(notes));localStorage.setItem(committedKey,JSON.stringify(committed));dirty=false;
+       }
+       $('.intro h1').textContent = trip.title;
+-      document.title = `${trip.title} — календарь`;
++      document.title = `${trip.title} — календарь · Traveler's Glider`;
+       rangeStart = trip.startDate || '';
+       rangeEnd = trip.endDate || '';
+       savedStart = rangeStart; savedEnd = rangeEnd;
+--- a/public/theme.css
++++ b/public/theme.css
+@@ -244,3 +244,13 @@
+ .trip-delete svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+ .trip-delete:hover { border-color:var(--accent-strong); background:var(--accent-strong); color:var(--cream); }
+ .trip-delete:disabled { opacity:.6; cursor:wait; }
++
++/* Journal identity and motion tokens. */
++:root {
++  --icon-museum:#9b432f; --icon-hotel:#655276; --icon-cafe:#805829;
++  --icon-meeting:#355f75; --icon-other:#685c45; --icon-park:#356656; --icon-viewpoint:#795239;
++  --motion-fast:160ms; --motion-normal:280ms; --motion-slow:380ms;
++  --motion-stagger:60ms; --motion-spin:700ms; --motion-pulse:1800ms; --motion-float:3000ms; --motion-ease:cubic-bezier(.2,.7,.3,1); --motion-soft:ease-in-out; --motion-linear:linear;
++  --journal-radius:18px; --journal-lift:0 2px 0 #1f3b3d18;
++  --stamp-font:var(--font-body); --route-line:var(--sage);
++}
+--- /dev/null
++++ b/public/journal-icons.js
+@@ -0,0 +1,9 @@
++/* Local, presentation-only journal icon family. */
++window.GliderIcons = (() => {
++const paths = {"glider": "m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3", "excursion": "m3 8 9-5 9 5H3Zm2 3v7m5-7v7m4-7v7m5-7v7M3 21h18", "stay": "M4 21V4h16v17M8 8h2m4 0h2M8 12h2m4 0h2m-7 9v-5h6v5", "restaurant": "M5 3v6m4-6v6M3 6v3a4 4 0 0 0 8 0V6M7 13v8M19 3c-4 3-4 9 0 9V3Zm0 9v9", "meeting": "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2 2 0 1 0 0-4M3 21v-3a6 6 0 0 1 12 0v3m3-7a5 5 0 0 1 3 5v2", "other": "m12 3 2.8 5.7L21 10l-4.5 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 10l6.2-1.3L12 3Z", "walking": "M13 6h.01M12 10l-3 5-4 1m7-6 4 4h4m-8-4 2 7 4 4m-4-4-5 4", "car": "m4 10 2-6h12l2 6M3 10h18v9H3v-9Zm3 4h2m8 0h2M6 19v2m12-2v2", "train": "M6 17h12V4H6v13Zm0-8h12M8 13h.01m8 0h.01M9 17l-4 4m10-4 4 4M7 20h10", "plane": "m3 12 7-2 1-7h2l1 7 7 2v2l-7-1-1 7 3 1v1l-4-1-4 1v-1l3-1-1-7-7 1v-2Z", "park": "m12 3-6 7h3l-5 7h7v4h2v-4h7l-5-7h3L12 3Z", "viewpoint": "M2 20 9 7l5 8 3-5 5 10H2ZM17 3h.01", "pin": "M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Zm-7-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z", "check": "m5 12 4 4L19 6", "map": "m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"};
++paths.ticket='M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Zm12 0v3m0 3v2m0 3v3';
++paths.edit='m4 16 12-12 4 4L8 20H4v-4Zm9-9 4 4';
++paths.trash='M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5';
++const colors={other:'var(--icon-other)',excursion:'var(--icon-museum)',stay:'var(--icon-hotel)',restaurant:'var(--icon-cafe)',meeting:'var(--icon-meeting)',park:'var(--icon-park)',viewpoint:'var(--icon-viewpoint)'};
++return {icon:(name)=>{name=Object.hasOwn(paths,name)?name:"other";return `<svg class="journal-icon icon-${name}" style="color:${colors[name]||'currentColor'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.other}"/></svg>`;}};
++})();
+--- /dev/null
++++ b/public/journal.css
+@@ -0,0 +1,85 @@
++/* Traveler's Glider: shared journal identity. Loaded after screen styles. */
++
++.journal-icon {width:24px;height:24px;display:inline-block;vertical-align:middle;flex-shrink:0}
++.brand {display:inline-flex;align-items:center;gap:10px;letter-spacing:-.025em}
++.brand-mark {display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:38px;border:1px solid var(--sage);border-radius:50%;color:var(--cream)!important;background:var(--teal)}
++.brand-mark svg {width:26px;height:26px}
++.brand-tagline {font-size:11px;letter-spacing:.08em;color:var(--cream);opacity:.9}
++header {gap:16px;flex-wrap:wrap;height:auto;min-height:76px;padding-top:14px;padding-bottom:14px}
++button,a,input,select,textarea {transition:transform var(--motion-fast) var(--motion-ease),color var(--motion-fast) var(--motion-ease),background-color var(--motion-fast) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease)}
++button:active:not(:disabled),.map-action:active {transform:scale(.97)}
++button:focus-visible,a:focus-visible {outline:3px solid var(--accent-strong);outline-offset:4px}
++button:disabled {cursor:wait}
++button[aria-busy=true]::before {content:'';display:inline-block;width:13px;height:13px;margin-right:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:journal-spin var(--motion-spin) var(--motion-linear) infinite}
++.history-head::after,.notes-heading::after {content:'';flex:1;margin-left:24px;border-top:1px dashed var(--route-line)}
++.trip-card {overflow:hidden;border-radius:var(--journal-radius);position:relative;isolation:isolate;transition:transform var(--motion-normal) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease);box-shadow:var(--journal-lift)}
++.trip-card:nth-child(3n+2) .cover {background:var(--sage);color:var(--teal)}
++.trip-card:nth-child(3n+3) .cover {background:var(--sand);color:var(--teal)}
++.trip-card .cover {position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;min-height:154px;background:var(--teal);color:var(--cream);padding:16px;align-self:stretch;border-radius:0}
++.cover>.journal-icon {width:62px;height:62px;transform:rotate(-10deg);transition:transform var(--motion-normal) var(--motion-ease)}
++.arrival-stamp {border:1px solid currentColor;border-radius:4px;padding:6px 8px;font:700 10px var(--stamp-font);text-transform:uppercase;letter-spacing:.12em;transform:rotate(-6deg);text-align:center}
++.trip-card h3 {font-family:var(--font-heading);line-height:1.25}
++.trip-card .stats span {font-size:11px;letter-spacing:.02em}
++.trip-card .stats span:last-child {color:var(--accent-strong);font-weight:700}
++.trip-arrow {color:var(--accent-strong)}
++.empty-scene {position:relative;margin:12px auto 24px;width:130px;padding:18px;border-bottom:1px dashed var(--sage);color:var(--accent-strong)}
++.empty-scene svg {width:64px;height:64px;animation:journal-float var(--motion-float) var(--motion-soft) infinite}
++.empty p {font-family:var(--font-heading);font-size:26px;color:var(--ink)}
++.event-kind-icon {display:inline-grid;place-items:center;width:34px;height:34px;border:1px solid var(--line);border-radius:50%;background:var(--paper)}
++.event {transition:transform var(--motion-normal) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease),background-color var(--motion-fast) var(--motion-ease)}
++.now-badge::before {content:'';display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:currentColor;animation:journal-pulse var(--motion-pulse) var(--motion-ease) infinite}
++.day {border-style:dashed;border-radius:var(--radius-sm);font-weight:700}
++.day.active {border-style:solid}
++.calendar-day {position:relative;isolation:isolate}
++.calendar-day.in-trip::before {content:'';position:absolute;inset:3px;border:1px dashed currentColor;border-radius:inherit;opacity:.3;pointer-events:none;animation:journal-reveal var(--motion-normal) var(--motion-ease)}
++.calendar-day.has-plans::after {content:'';position:absolute;bottom:8px;left:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:currentColor;animation:journal-pulse var(--motion-pulse) var(--motion-ease) infinite}
++.calendar-grid.month-arriving {animation:journal-month var(--motion-normal) var(--motion-ease)}
++.journal-marker {display:grid;place-items:center;background:var(--paper);border:2px solid var(--accent-strong);border-radius:50% 50% 50% 8px;color:var(--accent-strong);box-shadow:var(--journal-lift)}
++.journal-marker>.journal-icon,.sight-marker>.journal-icon {width:22px;height:22px;animation:journal-land var(--motion-slow) var(--motion-ease)}
++.journal-marker.marker-selected {background:var(--accent-strong);color:var(--cream);filter:none!important}
++.journal-marker.marker-selected svg {color:var(--cream)!important;animation:journal-bounce var(--motion-slow) var(--motion-ease)}
++.city-marker {background:var(--teal);color:var(--cream);border-color:var(--sage)}
++.sight-marker {background:var(--paper);color:var(--teal);border-color:var(--sage)}
++.sight-marker svg {width:18px;height:18px}
++.journal-route {animation:journal-reveal var(--motion-slow) var(--motion-ease)}
++.journal-enter {animation:journal-arrive var(--motion-slow) var(--motion-ease) both;animation-delay:calc(var(--journal-order,0) * var(--motion-stagger))}
++.journal-toast {position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:3000;display:flex;align-items:center;gap:12px;padding:14px 22px;border:1px solid var(--sage);border-radius:var(--pill);background:var(--teal);color:var(--cream);pointer-events:none}
++.journal-toast path {stroke-dasharray:28;stroke-dashoffset:0;animation:journal-check var(--motion-slow) var(--motion-ease)}
++.journal-progress {display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);margin:16px 0 4px}
++.journal-progress-track {width:120px;border-top:1px dashed var(--sage);position:relative;height:8px;flex-shrink:0}
++.journal-progress-track svg {position:absolute;top:-13px;left:clamp(0%,var(--progress),calc(100% - 24px));color:var(--accent-strong)}
++@media(hover:hover) {
++ .trip-card:hover {transform:translateY(-3px) rotate(-.6deg);border-color:var(--accent-strong)}
++ .trip-card:nth-child(even):hover {transform:translateY(-3px) rotate(.6deg)}
++ .trip-card:hover .cover>.journal-icon {transform:translate(5px,-4px) rotate(0deg)}
++ .event:hover {transform:translateX(2px)}
++}
++@keyframes journal-arrive {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
++@keyframes journal-month {from{opacity:.4;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
++@keyframes journal-reveal {from{opacity:0}to{opacity:1}}
++@keyframes journal-land {0%{opacity:0;transform:translateY(-10px) scale(.8)}70%{transform:translateY(2px) scale(1.05)}100%{opacity:1;transform:none}}
++@keyframes journal-bounce {50%{transform:translateY(-5px)}100%{transform:none}}
++@keyframes journal-float {50%{transform:translate(7px,-5px) rotate(6deg)}}
++@keyframes journal-pulse {50%{opacity:.4;transform:scale(.8)}}
++@keyframes journal-spin {to{transform:rotate(360deg)}}
++@keyframes journal-check {from{stroke-dashoffset:28}to{stroke-dashoffset:0}}
++@media(max-width:700px) {
++ .brand-tagline{display:none}.brand{font-size:18px}.brand-mark{width:32px;height:32px}
++ .trip-card .cover{min-height:125px;padding:8px}.cover>.journal-icon{width:38px;height:38px}
++ .arrival-stamp{font-size:8px;padding:4px;letter-spacing:0}.trip-info{min-width:0}.trip-info h3{overflow-wrap:anywhere}
++ .journal-enter{animation-delay:0ms}.trip-card:hover{transform:none}.journal-progress{flex-wrap:wrap}
++}
++@media(prefers-reduced-motion:reduce) {
++ *,*::before,*::after {animation:none!important;transition:none!important;scroll-behavior:auto!important}
++ .trip-card:hover,.trip-card:nth-child(even):hover,.event:hover,.trip-card:hover .cover>.journal-icon,button:active:not(:disabled){transform:none}
++}
++
++.journal-marker {filter:none!important}
++/* Three cover compositions, sharing the same card anatomy and reading order. */
++.trip-card:nth-child(3n+2) .cover {flex-direction:row;gap:24px}
++.trip-card:nth-child(3n+2) .arrival-stamp {transform:rotate(5deg)}
++.trip-card:nth-child(3n+3) .cover {align-items:flex-start;justify-content:flex-end}
++.trip-card:nth-child(3n+3) .cover>.journal-icon {position:absolute;right:24px;top:18px;width:94px;height:94px;opacity:.55}
++.trip-card:nth-child(3n+3) .arrival-stamp {position:relative}
++@media(max-width:700px){.trip-card:nth-child(3n+2) .cover{gap:12px}.trip-card:nth-child(3n+3) .cover>.journal-icon{width:64px;height:64px;right:14px}}
++.trip-card:nth-child(3n+1) .cover {background:var(--teal);color:var(--cream)}
+--- /dev/null
++++ b/public/journal.js
+@@ -0,0 +1,44 @@
++/* Presentation enhancements only; no application data is written here. */
++(() => {
++  const icon = name => window.GliderIcons.icon(name);
++  const decorate = root => {
++    root.querySelectorAll('.trip-card:not([data-journal]),.timeline-item:not([data-journal]),.note-row:not([data-journal])').forEach((el,i) => {
++      el.dataset.journal=''; el.style.setProperty('--journal-order',Math.min(i,7)); el.classList.add('journal-enter');
++      el.addEventListener('animationend',()=>el.classList.remove('journal-enter'),{once:true});
++    });
++    root.querySelectorAll('.empty-notes .empty-icon,.length-icon').forEach(el => {
++      if(!el.querySelector('svg')) el.innerHTML=icon('glider');
++    });
++    root.querySelectorAll('button').forEach(button => {
++      const busy=button.disabled && /Сохраня|Загруз/.test(button.textContent);
++      if(button.getAttribute('aria-busy')!==String(busy)) button.setAttribute('aria-busy',String(busy));
++    });
++  };
++  decorate(document);
++  let scheduled=false;
++  const observer=new MutationObserver(records=>{
++    if(!records.some(r=>r.type==='childList')) return;
++    if(!scheduled){scheduled=true;requestAnimationFrame(()=>{scheduled=false;decorate(document);});}
++  });
++  observer.observe(document.body,{childList:true,subtree:true});
++  const grid=document.querySelector('#calendarGrid');
++  ['prevMonth','nextMonth','monthSelect','yearSelect'].forEach(id=>{
++    document.getElementById(id)?.addEventListener(id.includes('Select')?'change':'click',()=>{
++      grid?.classList.remove('month-arriving');
++      requestAnimationFrame(()=>grid?.classList.add('month-arriving'));
++    });
++  });
++  // The existing save flow navigates immediately; carry its visual receipt to the map.
++  const status=document.querySelector('#daySaveStatus');
++  if(status) new MutationObserver(()=>{
++    if(status.textContent.startsWith('Сохранено.')) try{sessionStorage.setItem('glider-visual-receipt','1');}catch{}
++  }).observe(status,{childList:true});
++  try {
++    if(location.pathname==='/trip' && sessionStorage.getItem('glider-visual-receipt')){
++      sessionStorage.removeItem('glider-visual-receipt');
++      const toast=document.createElement('div');toast.className='journal-toast';toast.setAttribute('role','status');
++      toast.innerHTML=icon('check')+'<span>Сохранено. Маршрут готов к полёту.</span>';document.body.append(toast);
++      setTimeout(()=>toast.remove(),3500);
++    }
++  }catch{}
++})();
+--- /dev/null
++++ b/public/favicon.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><title>Traveler's Glider</title><rect width="32" height="32" rx="8" fill="#1f3b3d"/><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3" transform="translate(4 4)" fill="none" stroke="#f5ebdc" stroke-width="1.7" stroke-linejoin="round"/></svg>

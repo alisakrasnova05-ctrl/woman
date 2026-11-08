@@ -16,7 +16,7 @@ let eventMaterials = [];
 let pendingPhotos = [];
 let photoPreviewUrls = [];
 
-const map = L.map('map').setView([55.7558, 37.6173], 12);
+const map = L.map('map').setView([25, 10], 2);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© OpenStreetMap',
 }).addTo(map);
@@ -32,22 +32,92 @@ map.on('click', (event) => {
 });
 
 const eventIcons = {
-  excursion: '🏛️',
-  stay: '🛏️',
-  restaurant: '🍽️',
-  meeting: '🤝',
-  other: '✨',
+  excursion: GliderIcons.icon("excursion"),
+  stay: GliderIcons.icon("stay"),
+  restaurant: GliderIcons.icon("restaurant"),
+  meeting: GliderIcons.icon("meeting"),
+  other: GliderIcons.icon("other"),
 };
 
 const transportMeta = {
-  walking: { label: 'Пешком', icon: '🚶', color: '#0ea5e9' },
-  car: { label: 'Автомобиль', icon: '🚗', color: '#f97316' },
-  train: { label: 'Поезд', icon: '🚆', color: '#8b5cf6' },
-  plane: { label: 'Самолёт', icon: '✈️', color: '#2563eb' },
-  other: { label: 'Другой транспорт', icon: '🚌', color: '#64748b' },
+  walking: { label: 'Пешком', icon: GliderIcons.icon("walking"), color: '#467568' },
+  car: { label: 'Автомобиль', icon: GliderIcons.icon("car"), color: '#a63d2b' },
+  train: { label: 'Поезд', icon: GliderIcons.icon("train"), color: '#795977' },
+  plane: { label: 'Самолёт', icon: GliderIcons.icon("plane"), color: '#1f3b3d' },
+  other: { label: 'Другой транспорт', icon: GliderIcons.icon("other"), color: '#75614d' },
 };
 
+const requestedDay = new URLSearchParams(location.search).get('date');
+const focusedDay = /^\d{4}-\d{2}-\d{2}$/.test(requestedDay || '') && Number.isFinite(Date.parse(requestedDay)) && new Date(requestedDay).toISOString().slice(0,10)===requestedDay ? requestedDay : null;
 const activeTripId = new URLSearchParams(location.search).get('trip') || 'legacy';
+const mapStorageKey = 'glider-map-v1:' + activeTripId;
+const mapParams = new URLSearchParams(location.search);
+const requestedEvent = mapParams.get('event');
+let mapReady = false, lastPlace = null;
+const validPosition = p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng) && Math.abs(p.lat)<=90 && Math.abs(p.lng)<=180;
+const motionOptions = () => ({animate:!matchMedia('(prefers-reduced-motion: reduce)').matches,duration:0.4});
+function readMapState() {
+  try {
+    const state = JSON.parse(localStorage.getItem(mapStorageKey));
+    return state && validPosition(state.center) && Number.isFinite(state.zoom) && state.zoom>=0 && state.zoom<=19 ? state : null;
+  } catch { return null; }
+}
+function saveMapState() {
+  if (!mapReady) return;
+  const center=map.getCenter().wrap();
+  try {localStorage.setItem(mapStorageKey,JSON.stringify({center:{lat:center.lat,lng:center.lng},zoom:map.getZoom(),place:lastPlace,day:selectedDate}));} catch {}
+}
+function placePoint(place) {
+  if (!place) return null;
+  if (place.kind==='point') return points.find(p=>p.id===place.id);
+  if (place.kind==='event') {const event=events.find(e=>e.id===place.id);return event && points.find(p=>p.id===event.pointId);}
+  if (place.kind==='transfer') {const transfer=transfers.find(t=>t.id===place.id);return transfer && points.find(p=>p.id===transfer.fromPointId);}
+  return null;
+}
+function focusPoint(point,zoom=15) {
+  if(validPosition(point)) map.flyTo([point.lat,point.lng],zoom,motionOptions());
+}
+function restoreMap(trip) {
+  const state=readMapState();
+  const explicitEvent=events.find(e=>e.id===requestedEvent);
+  const dayEvent=focusedDay && (!state || state.day!==focusedDay) && events.find(e=>e.date<=focusedDay && (e.endDate||e.date)>=focusedDay && validPosition(points.find(p=>p.id===e.pointId)));
+  const navigationType=performance.getEntriesByType('navigation')[0]?.type;
+  const target=(explicitEvent && (navigationType==='navigate' || state?.place?.kind!=='event' || state.place.id!==explicitEvent.id || (focusedDay && state.day!==focusedDay)) ? explicitEvent : null) || dayEvent;
+  if(target) {
+    selectedDate=focusedDay || target.date;
+    lastPlace={kind:'event',id:target.id};selectedKey=itemKey('event',target.id);
+    render();
+    const point=placePoint(lastPlace);
+    if(validPosition(point)) focusPoint(point);
+    else if(state) map.flyTo(state.center,state.zoom,motionOptions());
+    else defaultMapView(trip);
+  } else if(state) {
+    lastPlace=state.place;
+    const point=placePoint(lastPlace);
+    if(lastPlace?.kind==='city' || validPosition(point)) {
+      if(!focusedDay && state.day && dates().includes(state.day)) selectedDate=state.day;
+      const event=lastPlace.kind==='event' && events.find(e=>e.id===lastPlace.id);
+      if(!focusedDay && event && !(event.date<=selectedDate && (event.endDate||event.date)>=selectedDate))selectedDate=event.date;
+      selectedKey=lastPlace.kind==='city'?null:itemKey(lastPlace.kind,lastPlace.id);
+      render();
+    } else if(lastPlace) {lastPlace=null;defaultMapView(trip);mapReady=true;saveMapState();return;}
+    map.flyTo(state.center,state.zoom,motionOptions());
+  } else defaultMapView(trip);
+  mapReady=true;
+  saveMapState();
+}
+function defaultMapView(trip) {
+  const city=trip.city && {lat:trip.city.latitude,lng:trip.city.longitude};
+  if(validPosition(city)) {focusPoint(city,12);return;}
+  const located=points.filter(validPosition);
+  if(located.length) document.querySelector('.map-hint').textContent='Нажмите на точку или перемещение, чтобы открыть подробности';
+  if(located.length>1) map.fitBounds(located.map(p=>[p.lat,p.lng]),{padding:[45,45],maxZoom:13,...motionOptions()});
+  else if(located.length===1) focusPoint(located[0]);
+  else {map.setView([25,10],2);document.querySelector('.map-hint').textContent='Выберите город при создании путешествия';}
+}
+map.on('moveend zoomend',saveMapState);
+window.addEventListener('pagehide',saveMapState);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveMapState();});
 async function api(endpoint, options) {
   if (/^\/api\/(points|events|transfers)(\/|$|\?)/.test(endpoint)) endpoint += (endpoint.includes('?') ? '&' : '?') + 'tripId=' + encodeURIComponent(activeTripId);
   const response = await fetch(endpoint, {
@@ -76,18 +146,23 @@ async function init() {
   document.querySelector('.trip').textContent = trip.title + ' · ' + (trip.startDate || 'Даты не выбраны');
   tripStartDate = trip.startDate;
   tripEndDate = trip.endDate;
-  selectedDate = trip.startDate;
+  selectedDate = focusedDay || trip.startDate;
+  const savedView=readMapState();
+  if(savedView) map.flyTo(savedView.center,savedView.zoom,motionOptions());
+  else defaultMapView(trip);
   await loadData();
   if (trip.city && Number.isFinite(trip.city.latitude) && Number.isFinite(trip.city.longitude)) {
     const city = trip.city;
-    map.setView([city.latitude, city.longitude], 12);
-    L.marker([city.latitude, city.longitude], {title:city.name}).addTo(map).bindPopup(esc(city.name));
+
+    L.marker([city.latitude, city.longitude], {title:city.name,icon:L.divIcon({className:"journal-marker city-marker",html:GliderIcons.icon("glider"),iconSize:[36,36],iconAnchor:[18,30]})}).addTo(map).bindPopup(esc(city.name)).on('click',()=>{lastPlace={kind:"city"};selectedKey=null;render();focusPoint({lat:city.latitude,lng:city.longitude},12);saveMapState();});
     if (!points.length) document.querySelector('.map-hint').textContent = 'Добавьте первую точку маршрута';
   }
   const availableDates = dates();
   if (!availableDates.includes(selectedDate)) selectedDate = availableDates[0];
   fillPointSelects();
   render();
+  restoreMap(trip);
+  window.loadCitySights(map, trip, async () => {await loadData();fillPointSelects();selectedDate=trip.startDate || dates()[0];render();});
 }
 
 function fillPointSelects() {
@@ -102,7 +177,7 @@ function fillPointSelects() {
 
 function dates() {
   const allItems = [...events, ...transfers];
-  const dateSet = new Set();
+  const dateSet = new Set(focusedDay ? [focusedDay] : []);
   if (tripStartDate && tripEndDate) {
     const current = new Date(tripStartDate+'T00:00:00Z');
     const end = new Date(tripEndDate+'T00:00:00Z');
@@ -181,6 +256,7 @@ function timelineItems() {
 }
 
 function render() {
+  document.querySelector('.city-marker')?.classList.toggle('marker-selected',lastPlace?.kind==='city');
   renderDays();
   const items = timelineItems();
   $('#timeline').innerHTML = items.length
@@ -243,7 +319,7 @@ function transferCard(transfer) {
   return `
     <article class="timeline-item transfer-card ${selectedKey === key ? 'selected' : ''}" data-kind="transfer" data-id="${esc(transfer.id)}">
       <div class="event-actions">
-        <button class="icon" type="button" data-edit-transfer="${esc(transfer.id)}">✎</button>
+        <button class="icon" type="button" data-edit-transfer="${esc(transfer.id)}" aria-label="Редактировать">${GliderIcons.icon("edit")}</button>
         <button class="icon" type="button" data-delete-transfer="${esc(transfer.id)}">×</button>
       </div>
       <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${meta.icon}</span><span class="event-time-copy">Дорога · ${esc(meta.label)}</span></div>
@@ -266,11 +342,16 @@ function drawMap(items) {
 
   points.forEach((point) => {
     const key = `point:${point.id}`;
-    const marker = L.marker([point.lat, point.lng])
+    const marker = L.marker([point.lat, point.lng], {icon:L.divIcon({className:"journal-marker",html:GliderIcons.icon(events.find(e=>e.pointId===point.id)?.type || "pin"),iconSize:[34,34],iconAnchor:[17,30]})})
       .addTo(map)
       .bindPopup(pointPopup(point));
-    const selectedPoint = events.some((event) => selectedKey === itemKey('event', event.id) && event.pointId === point.id);
+    const selectedPoint = selectedKey === key || events.some((event) => selectedKey === itemKey('event', event.id) && event.pointId === point.id);
     marker.getElement()?.classList.toggle('marker-selected', selectedPoint);
+    marker.on('click',()=>{
+      const event=events.find(e=>e.pointId===point.id && e.date<=selectedDate && (e.endDate||e.date)>=selectedDate) || events.find(e=>e.pointId===point.id);
+      if(event){if(!(event.date<=selectedDate && (event.endDate||event.date)>=selectedDate))selectedDate=event.date;selectItem('event',event.id);}
+      else {lastPlace={kind:'point',id:point.id};selectedKey=key;render();focusPoint(point);markers[key]?.openPopup();saveMapState();}
+    });
     markers[key] = marker;
   });
 
@@ -290,6 +371,7 @@ function drawMap(items) {
         weight: selected ? 7 : 4,
         opacity: selected ? 1 : 0.8,
         dashArray: '9 7',
+        className: 'journal-route',
       },
     )
       .addTo(map)
@@ -327,13 +409,14 @@ function pointPopup(point) {
 
 function selectItem(kind, id, pan = true) {
   selectedKey = itemKey(kind, id);
+  lastPlace = {kind,id};
   render();
 
   if (kind === 'event') {
     const event = events.find((item) => item.id === id);
     const point = event && points.find((item) => item.id === event.pointId);
     if (point && pan) {
-      map.setView([point.lat, point.lng], 15);
+      focusPoint(point);
       markers[`point:${point.id}`]?.openPopup();
     }
   } else {
@@ -341,10 +424,11 @@ function selectItem(kind, id, pan = true) {
     const from = transfer && points.find((item) => item.id === transfer.fromPointId);
     const to = transfer && points.find((item) => item.id === transfer.toPointId);
     if (from && to && pan) {
-      map.fitBounds([[from.lat, from.lng], [to.lat, to.lng]], { padding: [60, 60], maxZoom: 15 });
+      map.fitBounds([[from.lat, from.lng], [to.lat, to.lng]], { padding: [60, 60], maxZoom: 15, ...motionOptions() });
     }
   }
 
+  saveMapState();
   document.querySelector(`[data-kind="${kind}"][data-id="${id}"]`)
     ?.scrollIntoView({ block: 'nearest' });
 }
@@ -597,15 +681,15 @@ function featureCard(event, continuation = false) {
   return `
     <article class="timeline-item event ${selectedKey === itemKey('event', event.id) ? 'selected' : ''}" data-kind="event" data-id="${esc(event.id)}">
       <div class="event-actions">
-        <button class="icon" type="button" data-edit-event="${esc(event.id)}">✎</button>
+        <button class="icon" type="button" data-edit-event="${esc(event.id)}" aria-label="Редактировать">${GliderIcons.icon("edit")}</button>
         <button class="icon" type="button" data-delete-event="${esc(event.id)}">×</button>
       </div>
-      <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${eventIcons[event.type] || '✨'}</span><span class="event-time-copy">${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</span></div>
+      <div class="event-time"><span class="event-kind-icon" aria-hidden="true">${eventIcons[event.type] || GliderIcons.icon("other")}</span><span class="event-time-copy">${time} ${esc(timezone)}${endDate}${isNow(event) ? '<span class="now-badge">идёт сейчас</span>' : ''}</span></div>
       <div class="event-title">${esc(event.title)}</div>
-      <div class="event-meta">${point ? `📍 ${esc(point.name)}` : 'Без геоточки'}</div>
+      <div class="event-meta">${point ? `${GliderIcons.icon("pin")} ${esc(point.name)}` : 'Без геоточки'}</div>
       ${event.description ? `<div class="event-desc">${esc(event.description)}</div>` : ''}
       ${userPosition && point ? `<div class="distance">${fmtDistance(distanceKm(userPosition, point))} до места <a class="route-link" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=${point.lat},${point.lng}">Построить маршрут</a></div>` : ''}
-      ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">🎟 Бронь / билет</a></div>` : ''}
+      ${event.bookingUrl ? `<div class="event-meta"><a href="${esc(event.bookingUrl)}" target="_blank" rel="noopener">${GliderIcons.icon("ticket")} Бронь / билет</a></div>` : ''}
       ${photos ? `<div class="materials">${photos}</div>` : ''}
     </article>
   `;
@@ -613,6 +697,8 @@ function featureCard(event, continuation = false) {
 $('#locateBtn').onclick=locate;setInterval(()=>{updateClock();document.querySelectorAll('.timeline-item[data-kind="event"]').forEach(el=>{const e=events.find(e=>e.id===el.dataset.id);if(e)el.querySelector('.event-time')?.classList.toggle('now-badge',isNow(e))})},1000);updateClock();
 
 init().catch((error) => {
+  const state=readMapState();
+  if(state) map.flyTo(state.center,state.zoom,motionOptions());
   $('#timeline').innerHTML = `<div class="error">Не удалось загрузить данные: ${esc(error.message)}</div>`;
 });
 

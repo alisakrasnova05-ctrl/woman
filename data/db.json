@@ -183,10 +183,29 @@
       "destination": "Астрахань",
       "city": null,
       "month": 3,
-      "year": 2010,
-      "startDate": "2010-03-12",
-      "endDate": "2010-03-14",
+      "year": 2026,
+      "startDate": "2026-03-06",
+      "endDate": "2026-03-20",
       "createdAt": "2026-11-07T15:10:48.435Z"
+    },
+    {
+      "id": "trip_1794122942455_g6nfn",
+      "title": "Иркутск",
+      "destination": "Иркутск",
+      "city": {
+        "id": "local-irkutsk",
+        "name": "Иркутск",
+        "country": "Россия",
+        "admin1": "Иркутская область",
+        "latitude": 52.2864,
+        "longitude": 104.2807,
+        "timezone": "Asia/Irkutsk"
+      },
+      "month": 11,
+      "year": 2026,
+      "startDate": "2026-11-06",
+      "endDate": "2026-11-20",
+      "createdAt": "2026-11-08T07:29:02.456Z"
     },
     {
       "id": "trip_1794123092385_gzl0a",

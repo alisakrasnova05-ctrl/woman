@@ -16,6 +16,13 @@
   let notes = load('travelhub-day-notes', {});
   let tripEvents = [], tripPoints = [];
   let ticketDbPromise;
+  const draftKey=storageKey('travelhub-day-notes');
+  const committedKey=storageKey('travelhub-day-notes-committed');
+  let committed=load('travelhub-day-notes-committed',null);
+  let dirty=committed===null?Object.values(notes).some(rows=>rows.length):JSON.stringify(notes)!==JSON.stringify(committed);
+  let savingNotes=false;
+  window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
+  document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(link && dirty && link.target!=='_blank' && !link.getAttribute('href').startsWith('#') && !confirm('Изменения ещё не сохранены. Черновик останется на этом устройстве. Выйти без сохранения?'))event.preventDefault();});
 
   const yearOptions = [];
   for (let year = 1900; year <= 2100; year += 1) yearOptions.push(`<option value="${year}">${year}</option>`);
@@ -56,6 +63,13 @@
     const formatDay = key => parseDate(key).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
     $('#rangeHint').textContent = saveError || (saving ? 'Сохраняем даты…' : rangePending ? 'Выберите дату окончания или нажмите на ту же дату ещё раз для однодневной поездки' : rangeStart && rangeEnd ? `Поездка: ${formatDay(rangeStart)}${rangeStart === rangeEnd ? '' : ' — ' + formatDay(rangeEnd)} (${count} ${plural(count,'день','дня','дней')})` : 'Даты поездки не выбраны');
     $('#resetDatesBtn').disabled = saving || (!savedStart && !rangeStart);
+    let progress = document.querySelector('#journalProgress');
+    if (!progress) {progress=document.createElement('div');progress.id='journalProgress';progress.className='journal-progress';document.querySelector('.calendar-card').append(progress);}
+    const total = savedStart && savedEnd ? Math.round((parseDate(savedEnd)-parseDate(savedStart))/86400000)+1 : 0;
+    let filled=0;
+    for(let i=0;i<total;i++) {const date=parseDate(savedStart);date.setDate(date.getDate()+i);const key=dateKey(date);if(tripEvents.some(e=>e.date<=key && (e.endDate || e.date)>=key)) filled++;}
+    progress.innerHTML = total>0 ? `<span class="journal-progress-track" style="--progress:${filled/total*100}%">${GliderIcons.icon('glider')}</span><span>Дни с сохранёнными событиями: ${filled} из ${total}</span>` : '';
+
     const first = new Date(view.getFullYear(), view.getMonth(), 1);
     const offset = (first.getDay() + 6) % 7;
     const start = new Date(view.getFullYear(), view.getMonth(), 1 - offset);
@@ -68,6 +82,7 @@
       const classes = ['calendar-day'];
       if (day.getMonth() !== view.getMonth()) classes.push('outside');
       if (inside) classes.push('in-trip');
+      if (tripEvents.some(event => event.date <= key && (event.endDate || event.date) >= key)) classes.push('has-plans');
       if (key === rangeStart && rangeStart) classes.push('range-start');
       if (key === rangeEnd && rangeEnd && rangeEnd !== rangeStart && validRange) classes.push('range-end');
       if (key === selected) classes.push('selected-day');
@@ -93,7 +108,7 @@
   }
 
   function chooseDay(key) {
-    if (saving) return;
+    if (saving || savingNotes) return;
     saveError = '';
     if (rangePending) {
       rangeEnd = key;
@@ -159,7 +174,8 @@
   }
 
   function persistNotes() {
-    localStorage.setItem(storageKey('travelhub-day-notes'), JSON.stringify(notes));
+    dirty=true;
+    try {localStorage.setItem(draftKey, JSON.stringify(notes));$('#daySaveStatus').textContent='Есть несохранённые изменения. Черновик сохранён на устройстве.';}catch{$('#daySaveStatus').textContent='Не удалось сохранить черновик на устройстве. Сохраните события перед выходом.';}
   }
 
   function createTicketId() {
@@ -178,6 +194,7 @@
         <input type="time" aria-label="Время начала события" value="${escapeAttr(item.startTime || item.time || '')}" data-field="startTime">
         <input type="time" aria-label="Время окончания события" value="${escapeAttr(item.endTime || '')}" data-field="endTime">
         <input type="text" aria-label="Событие и место" placeholder="Например, музей или прогулка по набережной" value="${escapeAttr(item.title || '')}" data-field="title">
+        <details class="day-note-details"><summary>Описание и место</summary><label>Тип<select data-field="type">${Object.entries({excursion:'Экскурсия',stay:'Проживание',restaurant:'Ресторан',meeting:'Встреча',other:'Другое'}).map(([key,label])=>`<option value="${key}" ${(item.type||'other')===key?'selected':''}>${label}</option>`).join('')}</select></label><label>Описание<textarea data-field="description">${escapeAttr(item.description||'')}</textarea></label><label>Точка маршрута<select data-field="pointId"><option value="">Без точки</option>${tripPoints.map(p=>`<option value="${escapeAttr(p.id)}" ${item.pointId===p.id?'selected':''}>${escapeAttr(p.name)}</option>`).join('')}</select></label></details>
         <div class="ticket-cell ${item.ticket ? 'has-ticket' : ''}">
           <input class="ticket-file-input" type="file" accept=".pdf,image/*" aria-label="Выбрать файл билета" tabindex="-1">
           <button class="ticket-pick" type="button" title="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}" aria-label="${item.ticket ? 'Заменить билет' : 'Прикрепить билет'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 7.1-7.1a3.5 3.5 0 0 1 5 5L10 20.5a5 5 0 0 1-7.1-7.1L13 3.3"/></svg><span>${item.ticket ? '' : 'Прикрепить'}</span></button>
@@ -190,7 +207,7 @@
     $('#notesRows').querySelectorAll('.note-row').forEach((row) => {
       const rowDate = selected;
       const rowIndex = Number(row.dataset.index);
-      row.querySelectorAll('input').forEach((input) => input.addEventListener('input', () => {
+      row.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('input', () => {
         const current = notes[rowDate] || [];
         current[rowIndex][input.dataset.field] = input.value;
         notes[rowDate] = current;
@@ -255,12 +272,15 @@
   }
 
   function renderSavedContent() {
+    if(tripId) document.querySelectorAll('a.map-link,a.map-action').forEach(link=>{
+      if(new URL(link.href,location.href).pathname==='/trip') link.href='/trip?'+new URLSearchParams({trip:tripId,date:selected});
+    });
     const events = tripEvents.filter(event => event.date === selected ||
       (event.endDate && event.date < selected && event.endDate >= selected))
       .sort((a,b) => (a.date+'T'+a.startTime).localeCompare(b.date+'T'+b.startTime));
     const eventHtml = events.map(event => {
       const point = tripPoints.find(p => p.id === event.pointId);
-      return `<li><strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
+      return `<li><a href="/trip?${new URLSearchParams({trip:tripId,date:selected,event:event.id})}">${GliderIcons.icon(event.type || "other")} <strong>${escapeAttr(event.startTime || '')} — ${escapeAttr(event.title)}</strong></a>${point ? ` · ${escapeAttr(point.name)}` : ''}${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}</li>`;
     }).join('');
     $('#savedTripContent').innerHTML = tripId ?
       `<details open><summary>События поездки на выбранный день (${events.length})</summary>${eventHtml ? `<ul>${eventHtml}</ul>` : '<p>На этот день сохранённых событий нет.</p>'}</details>
@@ -271,6 +291,27 @@
     return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
 
+  $('#saveDayBtn').addEventListener('click',async()=>{
+    if(savingNotes)return;
+    if(!tripId){$('#daySaveStatus').textContent='Откройте календарь конкретного путешествия с главной страницы.';return;}
+    const events=[];
+    for(const [date,rows] of Object.entries(notes))for(const note of rows){
+      if(!note.title?.trim() || !(note.startTime||note.time)){$('#daySaveStatus').textContent='Заполните название и время начала всех событий, включая другие дни. Либо удалите пустые строки.';return;}
+      note.dayNoteId=note.dayNoteId||createTicketId();
+      events.push({dayNoteId:note.dayNoteId,title:note.title,type:note.type||'other',date,startTime:note.startTime||note.time,endTime:note.endTime||'',endDate:note.endDate||date,description:note.description||'',pointId:note.pointId||null,bookingUrl:note.bookingUrl||'',ticket:note.ticket||null});
+    }
+    persistNotes();savingNotes=true;$('#saveDayBtn').disabled=true;$('#saveDayBtn').textContent='Сохраняем…';
+    const controls=[...$('#notesRows').querySelectorAll('input,textarea,select,button'),$('#addEventBtn')];controls.forEach(el=>el.disabled=true);
+    try{
+      const response=await fetch('/api/trips/'+encodeURIComponent(tripId)+'/day-events',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({events}),signal:AbortSignal.timeout(15000)});
+      const result=await response.json();if(!response.ok)throw Error(result.error||(result.errors||[]).join(', ')||'Не удалось сохранить события');
+      committed=JSON.parse(JSON.stringify(notes));
+      try{localStorage.setItem(committedKey,JSON.stringify(committed));localStorage.setItem('glider-trips-updated',JSON.stringify({tripId,at:Date.now()}));}catch{}
+      dirty=false;$('#daySaveStatus').textContent='Сохранено. Открываем карту…';
+      location.href='/trip?'+new URLSearchParams({trip:tripId,date:selected});
+    }catch(error){$('#daySaveStatus').textContent='Не удалось сохранить: '+error.message+'. Черновик остался на устройстве.';}
+    finally{savingNotes=false;$('#saveDayBtn').disabled=false;$('#saveDayBtn').textContent='Сохранить и перейти к карте';controls.forEach(el=>el.disabled=false);}
+  });
   $('#resetDatesBtn').addEventListener('click', () => saveRange('', ''));
   $('#prevMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCalendar(); });
   $('#nextMonth').addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCalendar(); });
@@ -306,8 +347,13 @@
         if(!result.ok) throw Error('Не удалось загрузить содержимое поездки. Попробуйте обновить страницу.');
         return result.json();
       }));
+      const managed=tripEvents.filter(e=>e.source==='day-notes');
+      if(!localStorage.getItem(draftKey) && managed.length){
+        notes={};for(const e of managed){(notes[e.date]||=[]).push({...e,dayNoteId:e.dayNoteId});}
+        committed=JSON.parse(JSON.stringify(notes));localStorage.setItem(draftKey,JSON.stringify(notes));localStorage.setItem(committedKey,JSON.stringify(committed));dirty=false;
+      }
       $('.intro h1').textContent = trip.title;
-      document.title = `${trip.title} — календарь`;
+      document.title = `${trip.title} — календарь · Traveler's Glider`;
       rangeStart = trip.startDate || '';
       rangeEnd = trip.endDate || '';
       savedStart = rangeStart; savedEnd = rangeEnd;

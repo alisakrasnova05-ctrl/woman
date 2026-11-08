@@ -1,0 +1,9 @@
+/* Local, presentation-only journal icon family. */
+window.GliderIcons = (() => {
+const paths = {"glider": "m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3", "excursion": "m3 8 9-5 9 5H3Zm2 3v7m5-7v7m4-7v7m5-7v7M3 21h18", "stay": "M4 21V4h16v17M8 8h2m4 0h2M8 12h2m4 0h2m-7 9v-5h6v5", "restaurant": "M5 3v6m4-6v6M3 6v3a4 4 0 0 0 8 0V6M7 13v8M19 3c-4 3-4 9 0 9V3Zm0 9v9", "meeting": "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-1a2 2 0 1 0 0-4M3 21v-3a6 6 0 0 1 12 0v3m3-7a5 5 0 0 1 3 5v2", "other": "m12 3 2.8 5.7L21 10l-4.5 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 10l6.2-1.3L12 3Z", "walking": "M13 6h.01M12 10l-3 5-4 1m7-6 4 4h4m-8-4 2 7 4 4m-4-4-5 4", "car": "m4 10 2-6h12l2 6M3 10h18v9H3v-9Zm3 4h2m8 0h2M6 19v2m12-2v2", "train": "M6 17h12V4H6v13Zm0-8h12M8 13h.01m8 0h.01M9 17l-4 4m10-4 4 4M7 20h10", "plane": "m3 12 7-2 1-7h2l1 7 7 2v2l-7-1-1 7 3 1v1l-4-1-4 1v-1l3-1-1-7-7 1v-2Z", "park": "m12 3-6 7h3l-5 7h7v4h2v-4h7l-5-7h3L12 3Z", "viewpoint": "M2 20 9 7l5 8 3-5 5 10H2ZM17 3h.01", "pin": "M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Zm-7-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z", "check": "m5 12 4 4L19 6", "map": "m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"};
+paths.ticket='M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Zm12 0v3m0 3v2m0 3v3';
+paths.edit='m4 16 12-12 4 4L8 20H4v-4Zm9-9 4 4';
+paths.trash='M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5';
+const colors={other:'var(--icon-other)',excursion:'var(--icon-museum)',stay:'var(--icon-hotel)',restaurant:'var(--icon-cafe)',meeting:'var(--icon-meeting)',park:'var(--icon-park)',viewpoint:'var(--icon-viewpoint)'};
+return {icon:(name)=>{name=Object.hasOwn(paths,name)?name:"other";return `<svg class="journal-icon icon-${name}" style="color:${colors[name]||'currentColor'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.other}"/></svg>`;}};
+})();
